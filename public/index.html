@@ -13,7 +13,7 @@
         rel="stylesheet">
     <link rel="stylesheet" href="style.css">
     <!-- Chart.js CDN -->
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js/dist/chart.umd.min.js"></script>
     <style>
         /* Embed Overrides for clean fit */
         body {
@@ -156,11 +156,18 @@
 
                 </div>
 
+                <!-- Analysis Trigger -->
+                <div class="text-center" style="margin-bottom: 2rem;">
+                    <button id="btn-analyze" class="btn btn-primary" style="font-size: 1.2rem; padding: 1rem 3rem;">
+                        查看分析結果 &raquo;
+                    </button>
+                </div>
+
                 <!-- Scenario Text -->
-                <div id="sim-feedback" class="sim-feedback"></div>
+                <div id="sim-feedback" class="sim-feedback hidden"></div>
 
                 <!-- Dashboard -->
-                <div class="sim-dashboard">
+                <div class="sim-dashboard hidden" id="sim-dashboard">
                     <div class="stat-card">
                         <h4>預期報酬 (Expected)</h4>
                         <div class="stat-value" id="out-return">--%</div>
@@ -176,7 +183,7 @@
                 </div>
 
                 <!-- Chart -->
-                <div class="chart-container">
+                <div class="chart-container hidden" id="chart-section">
                     <h3>未來資產差距預測 (Wealth Projection)</h3>
                     <canvas id="wealthChart"></canvas>
 

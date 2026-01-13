@@ -178,9 +178,23 @@ function initSimulator() {
     });
 
     [finInputs.initial, finInputs.monthly].forEach(inp => {
+        // Just update internal state or small UI bits if needed, but not full chart
+        // For now, we rely on users clicking "Run" to see the impact of money changes too
+        // OR we can allow money changes to update Rate A/B immediately? 
+        // User asked for "Comment and Gap" to be hidden. 
+        // Let's allow Rate A/B to update (as it's just 'Current Status'), but hide Chart/Feedback.
         inp.addEventListener('input', updateUI);
     });
+
     document.addEventListener('inflationUpdated', updateUI);
+
+    // Button Listener
+    const btnAnalyze = document.getElementById('btn-analyze');
+    if (btnAnalyze) {
+        btnAnalyze.addEventListener('click', () => {
+            calculateAndRender();
+        });
+    }
 
     // --- Math ---
     function getWeightedReturn(reqState) {
@@ -358,24 +372,42 @@ function initSimulator() {
         }
     }
 
+    // Function 1: Fast UI Updates (Sliders & Labels only)
     function updateUI() {
         // Sync Labels Group A
         Object.keys(groups.a.state).forEach(k => groups.a.labels[k].innerText = `${groups.a.state[k]}%`);
         // Sync Labels Group B
         Object.keys(groups.b.state).forEach(k => groups.b.labels[k].innerText = `${groups.b.state[k]}%`);
 
-        const metrics = calculateMetrics();
+        // Recalculate simple rates immediately
+        const rateA = getWeightedReturn(groups.a.state);
+        const rateB = getWeightedReturn(groups.b.state);
 
-        finInputs.rateA.innerText = `${metrics.rateA.toFixed(1)}%`;
-        finInputs.rateB.innerText = `${metrics.rateB.toFixed(1)}%`;
+        finInputs.rateA.innerText = `${rateA.toFixed(1)}%`;
+        finInputs.rateB.innerText = `${rateB.toFixed(1)}%`;
+    }
+
+    // Function 2: Heavy Calculation & Rendering (Triggered by Button)
+    function calculateAndRender() {
+        // Show sections
+        const db = document.getElementById('sim-dashboard');
+        const chartSec = document.getElementById('chart-section');
+        const feedbackSec = document.getElementById('sim-feedback');
+
+        [db, chartSec, feedbackSec].forEach(el => {
+            if (el) el.classList.remove('hidden');
+        });
+
+        // Scroll to results (optional but UX friendly)
+        feedbackSec.scrollIntoView({ behavior: 'smooth', block: 'start' });
+
+        const metrics = calculateMetrics();
 
         // Dashboard uses Plan B Stats
         outputs.return.innerText = (metrics.rateB > 0 ? '+' : '') + `${metrics.rateB.toFixed(1)}%`;
         outputs.return.style.color = (metrics.rateB < 0) ? 'var(--danger)' : 'var(--white)';
         outputs.risk.innerText = `${metrics.maxRiskB.toFixed(1)}%`;
         outputs.prob.innerText = `${Math.round(metrics.probB)}%`;
-
-        // Range Bar Logic Removed per user request
 
         // Advanced Feedback Logic
         const state = groups.b.state;

@@ -665,7 +665,8 @@ h3 {
     }
 
     .sim-inputs,
-    .sim-dashboard {
+    .sim-dashboard,
+    .fin-inputs-grid {
         grid-template-columns: 1fr;
         /* Stack on mobile */
     }
