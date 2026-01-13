@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>資產配置模擬器 (Embed)</title>
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=Noto+Sans+TC:wght@400;500;700&display=swap"
+        rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+    <!-- Chart.js CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        /* Embed Overrides for clean fit */
+        body {
+            background-color: transparent !important;
+            /* Allow iframe parent bg to show if needed, or set specific */
+            padding: 0;
+            margin: 0;
+        }
+
+        .section {
+            padding: 1rem 0;
+            /* Reduce padding for widget */
+        }
+
+        .simulator-section {
+            border-radius: 0;
+            /* Full width widget usually doesn't need outer radius if in iframe */
+            min-height: 100vh;
+            /* Ensure full height usage */
+        }
+
+        .container {
+            width: 100%;
+            max-width: 100%;
+            padding: 0 1rem;
+        }
+    </style>
+</head>
+
+<body>
+
+    <!-- Simulator Section (Standalone) -->
+    <section id="simulator" class="section simulator-section">
+        <div class="container">
+            <!-- Header removed for embed, or kept minimal? -->
+            <!-- <h2 class="section-title text-light">資產配置三維模擬器 V2.0</h2> -->
+            <!-- <p class="section-desc text-light">動手拉拉看，發現你的「黃金比例」。</p> -->
+
+            <div class="simulator-container">
+
+                <!-- Step 1 Inflation Calculator -->
+                <div class="calc-card">
+                    <h3>Step 1: 你的對手 (通貨膨脹)</h3>
+                    <div class="calc-inputs">
+                        <div class="input-group">
+                            <label>想一個你有印象的消費</label>
+                            <input type="text" id="calc-item" placeholder="例如：便當/房租/早餐">
+                        </div>
+                        <div class="input-group">
+                            <label>10 年前的價格</label>
+                            <input type="number" id="calc-price-old" placeholder="70" value="70">
+                        </div>
+                        <div class="input-group">
+                            <label>現在的價格</label>
+                            <input type="number" id="calc-price-now" placeholder="100" value="100">
+                        </div>
+                        <button id="btn-calc-inflation" class="btn btn-primary">計算我的通膨率</button>
+                    </div>
+                    <div id="calc-result" class="calc-result hidden">
+                        你的個人通膨率：<span id="res-inflation-rate">--%</span> <br>
+                        <small>這將是你的投資及格線。</small>
+                    </div>
+                </div>
+
+                <!-- Step 2 Financial Inputs -->
+                <div class="financial-inputs-section">
+                    <h3>Step 2: 你的戰力 (本金與現金流)</h3>
+                    <div class="fin-inputs-grid">
+                        <div class="input-group">
+                            <label>初始本金 (Initial Capital)</label>
+                            <input type="number" id="inp-initial" value="1000000">
+                        </div>
+                        <div class="input-group">
+                            <label>每月投入 (Monthly Contribution)</label>
+                            <input type="number" id="inp-monthly" value="20000">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Step 3 & 4 Dual Panels -->
+                <div class="sim-panels-container">
+
+                    <!-- Panel A -->
+                    <div class="sim-panel panel-a">
+                        <div class="panel-header">
+                            <h3>Step 3: 你的現況 (Plan A)</h3>
+                            <span class="rate-badge">年化 <span id="val-rate-a">1.5%</span></span>
+                        </div>
+                        <div class="sim-inputs">
+                            <div class="slider-group">
+                                <label for="slider-a-cash">現金/定存 <span id="val-a-cash"
+                                        class="val-display">100%</span></label>
+                                <input type="range" id="slider-a-cash" min="0" max="100" value="100">
+                            </div>
+                            <div class="slider-group">
+                                <label for="slider-a-etf">指數投資 <span id="val-a-etf"
+                                        class="val-display">0%</span></label>
+                                <input type="range" id="slider-a-etf" min="0" max="100" value="0">
+                            </div>
+                            <div class="slider-group">
+                                <label for="slider-a-re">房產/收租 <span id="val-a-re" class="val-display">0%</span></label>
+                                <input type="range" id="slider-a-re" min="0" max="100" value="0">
+                            </div>
+                            <div class="slider-group">
+                                <label for="slider-a-active">主動交易 <span id="val-a-active"
+                                        class="val-display">0%</span></label>
+                                <input type="range" id="slider-a-active" min="0" max="100" value="0">
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Panel B -->
+                    <div class="sim-panel panel-b">
+                        <div class="panel-header">
+                            <h3>Step 4: 你的未來 (Plan B)</h3>
+                            <span class="rate-badge accent">年化 <span id="val-rate-b">--%</span></span>
+                        </div>
+                        <div class="sim-inputs">
+                            <div class="slider-group">
+                                <label for="slider-b-cash">現金/定存 <span id="val-b-cash"
+                                        class="val-display">100%</span></label>
+                                <input type="range" id="slider-b-cash" min="0" max="100" value="100">
+                            </div>
+                            <div class="slider-group">
+                                <label for="slider-b-etf">指數投資 <span id="val-b-etf"
+                                        class="val-display">0%</span></label>
+                                <input type="range" id="slider-b-etf" min="0" max="100" value="0">
+                            </div>
+                            <div class="slider-group">
+                                <label for="slider-b-re">房產/收租 <span id="val-b-re" class="val-display">0%</span></label>
+                                <input type="range" id="slider-b-re" min="0" max="100" value="0">
+                            </div>
+                            <div class="slider-group">
+                                <label for="slider-b-active">主動交易 <span id="val-b-active"
+                                        class="val-display">0%</span></label>
+                                <input type="range" id="slider-b-active" min="0" max="100" value="0">
+                            </div>
+                        </div>
+                    </div>
+
+                </div>
+
+                <!-- Scenario Text -->
+                <div id="sim-feedback" class="sim-feedback"></div>
+
+                <!-- Dashboard -->
+                <div class="sim-dashboard">
+                    <div class="stat-card">
+                        <h4>預期報酬 (Expected)</h4>
+                        <div class="stat-value" id="out-return">--%</div>
+                    </div>
+                    <div class="stat-card">
+                        <h4>極端風險 (Max Risk)</h4>
+                        <div class="stat-value danger" id="out-risk">--%</div>
+                    </div>
+                    <div class="stat-card">
+                        <h4>實現機率 (Confidence)</h4>
+                        <div class="stat-value success" id="out-prob">--%</div>
+                    </div>
+                </div>
+
+                <!-- Chart -->
+                <div class="chart-container">
+                    <h3>未來資產差距預測 (Wealth Projection)</h3>
+                    <canvas id="wealthChart"></canvas>
+
+                    <!-- Wealth Gap Card -->
+                    <div class="wealth-gap-card" id="wealth-gap-card">
+                        <div class="gap-label">20 年後，你的財富差距將達到：</div>
+                        <div class="gap-value" id="val-wealth-gap">計算中...</div>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </section>
+
+    <!-- Scripts -->
+    <script src="config.js"></script>
+    <script src="script.js"></script>
+</body>
+
+</html>

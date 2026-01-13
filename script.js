@@ -1,0 +1,423 @@
+/**
+ * script.js (V3.2 Final)
+ * Logic for the Asset Allocation Simulator.
+ * Handles Dual Independent Slider Groups, Monthly Compounding, and Wealth Gap.
+ */
+
+// Wait for DOM
+document.addEventListener('DOMContentLoaded', () => {
+    initInflationCalc();
+    initSimulator();
+});
+
+// --- Part 1: Inflation Calculator ---
+function initInflationCalc() {
+    const inputs = {
+        item: document.getElementById('calc-item'),
+        oldPrice: document.getElementById('calc-price-old'),
+        nowPrice: document.getElementById('calc-price-now')
+    };
+    const btn = document.getElementById('btn-calc-inflation');
+    const resultDiv = document.getElementById('calc-result');
+    const resultSpan = document.getElementById('res-inflation-rate');
+
+    btn.addEventListener('click', () => {
+        const pOld = parseFloat(inputs.oldPrice.value);
+        const pNow = parseFloat(inputs.nowPrice.value);
+        const years = 10;
+
+        if (pOld > 0 && pNow > 0) {
+            const cagr = (Math.pow(pNow / pOld, 1 / years) - 1) * 100;
+            const cagrFixed = cagr.toFixed(2);
+
+            resultSpan.innerText = `${cagrFixed}%`;
+            resultDiv.classList.remove('hidden');
+
+            CONFIG.USER_INPUTS.calculatedInflation = cagr;
+            document.dispatchEvent(new Event('inflationUpdated'));
+        } else {
+            alert("請輸入有效的價格數字！");
+        }
+    });
+}
+
+// --- Part 2: Simulator Logic (Dual) ---
+function initSimulator() {
+    // === Inputs ===
+    const finInputs = {
+        initial: document.getElementById('inp-initial'),
+        monthly: document.getElementById('inp-monthly'),
+        rateA: document.getElementById('val-rate-a'), // In Panel A Header
+        rateB: document.getElementById('val-rate-b')  // In Panel B Header
+    };
+
+    // --- Dual Slider Groups ---
+    const groups = {
+        a: {
+            sliders: {
+                cash: document.getElementById('slider-a-cash'),
+                etf: document.getElementById('slider-a-etf'),
+                re: document.getElementById('slider-a-re'),
+                active: document.getElementById('slider-a-active')
+            },
+            labels: {
+                cash: document.getElementById('val-a-cash'),
+                etf: document.getElementById('val-a-etf'),
+                re: document.getElementById('val-a-re'),
+                active: document.getElementById('val-a-active')
+            },
+            state: { cash: 100, etf: 0, re: 0, active: 0 } // Default A: 100% Cash
+        },
+        b: {
+            sliders: {
+                cash: document.getElementById('slider-b-cash'),
+                etf: document.getElementById('slider-b-etf'),
+                re: document.getElementById('slider-b-re'),
+                active: document.getElementById('slider-b-active')
+            },
+            labels: {
+                cash: document.getElementById('val-b-cash'),
+                etf: document.getElementById('val-b-etf'),
+                re: document.getElementById('val-b-re'),
+                active: document.getElementById('val-b-active')
+            },
+            state: { cash: 100, etf: 0, re: 0, active: 0 } // Default B: 100% Cash
+        }
+    };
+
+    const outputs = {
+        return: document.getElementById('out-return'),
+        risk: document.getElementById('out-risk'),
+        prob: document.getElementById('out-prob'),
+        feedback: document.getElementById('sim-feedback')
+    };
+
+    let wealthChart = null;
+
+    // --- Normalization Logic (Smart Remainder) ---
+    function updateGroupState(groupKey, sourceKey) {
+        const group = groups[groupKey];
+        const state = group.state;
+
+        // Ensure source is integer and valid
+        state[sourceKey] = Math.max(0, Math.min(100, state[sourceKey]));
+
+        let diff = 100 - state[sourceKey];
+        const others = Object.keys(state).filter(k => k !== sourceKey);
+
+        let sumOthers = 0;
+        others.forEach(k => sumOthers += state[k]);
+
+        if (sumOthers === 0) {
+            // Even distribution for integers
+            const count = others.length;
+            const base = Math.floor(diff / count);
+            let rem = diff % count;
+
+            others.forEach(k => {
+                state[k] = base;
+                if (rem > 0) {
+                    state[k]++;
+                    rem--;
+                }
+            });
+        } else {
+            const ratio = diff / sumOthers;
+            others.forEach(k => state[k] = Math.max(0, Math.round(state[k] * ratio)));
+        }
+
+        // Recalculate sum to find remainder/overflow
+        let runningSum = 0;
+        others.forEach(k => runningSum += state[k]);
+        let remainder = diff - runningSum;
+
+        // Smart Distribution of Remainder
+        let loops = 0;
+        while (remainder !== 0 && loops < 100) {
+            if (remainder > 0) {
+                // Add to largest item or cycle
+                for (let k of others) {
+                    if (remainder > 0) {
+                        state[k]++;
+                        remainder--;
+                    }
+                }
+            } else {
+                // Subtract from items > 0, largest first
+                const sorted = [...others].sort((a, b) => state[b] - state[a]);
+                let subtracted = false;
+                for (let k of sorted) {
+                    if (remainder < 0 && state[k] > 0) {
+                        state[k]--;
+                        remainder++;
+                        subtracted = true;
+                    }
+                }
+                if (!subtracted) break;
+            }
+            loops++;
+        }
+
+        // Final Safety Clamp
+        others.forEach(k => state[k] = Math.max(0, Math.min(100, state[k])));
+
+        // Visual Sync
+        others.forEach(k => group.sliders[k].value = state[k]);
+
+        updateUI();
+    }
+
+    // Attach Listeners for Both Groups
+    ['a', 'b'].forEach(gKey => {
+        Object.keys(groups[gKey].sliders).forEach(sKey => {
+            groups[gKey].sliders[sKey].addEventListener('input', (e) => {
+                groups[gKey].state[sKey] = parseInt(e.target.value);
+                updateGroupState(gKey, sKey);
+            });
+        });
+    });
+
+    [finInputs.initial, finInputs.monthly].forEach(inp => {
+        inp.addEventListener('input', updateUI);
+    });
+    document.addEventListener('inflationUpdated', updateUI);
+
+    // --- Math ---
+    function getWeightedReturn(reqState) {
+        let activeReturn = (reqState.active > 20) ? CONFIG.RATES.ACTIVE_RETURN_PENALTY : CONFIG.RATES.ACTIVE_RETURN_AVG;
+        if (reqState.active < 5) activeReturn = 0; // Ineffective zone
+
+        return (
+            (reqState.cash * CONFIG.RATES.CASH_RETURN) +
+            (reqState.etf * CONFIG.RATES.ETF_RETURN) +
+            (reqState.re * CONFIG.RATES.REAL_ESTATE_RETURN) +
+            (reqState.active * activeReturn)
+        ) / 100;
+    }
+
+    // UPDATED: Monthly Compounding for Higher Accuracy
+    function calculateFV(principal, monthly, annualRatePercent, years) {
+        const rAnnual = annualRatePercent / 100;
+        const rMonthly = rAnnual / 12;
+        const months = years * 12;
+
+        if (rAnnual === 0) return principal + (monthly * months);
+
+        // FV of Principal: P * (1 + r)^n
+        const fvPrincipal = principal * Math.pow(1 + rMonthly, months);
+
+        // FV of Series (Ordinary Annuity): PMT * [((1 + r)^n - 1) / r]
+        const fvContributions = monthly * ((Math.pow(1 + rMonthly, months) - 1) / rMonthly);
+
+        return fvPrincipal + fvContributions;
+    }
+
+    function calculateMetrics() {
+        const rateA = getWeightedReturn(groups.a.state);
+        const rateB = getWeightedReturn(groups.b.state);
+
+        // Metrics for Plan B
+        const stateB = groups.b.state;
+        const maxRiskB = (
+            (stateB.cash * CONFIG.RISK.CASH_RISK) +
+            (stateB.etf * CONFIG.RISK.ETF_RISK) +
+            (stateB.re * CONFIG.RISK.REAL_ESTATE_RISK) +
+            (stateB.active * CONFIG.RISK.ACTIVE_RISK)
+        ) / 100;
+
+        const probB = (
+            (stateB.cash * CONFIG.PROBABILITY.CASH_PROB) +
+            (stateB.etf * CONFIG.PROBABILITY.ETF_PROB) +
+            (stateB.re * CONFIG.PROBABILITY.REAL_ESTATE_PROB) +
+            (stateB.active * CONFIG.PROBABILITY.ACTIVE_PROB)
+        ) / 100;
+
+        // Best case logic for Bar
+        let activeBest = (stateB.active > 20) ? CONFIG.RATES.ACTIVE_RETURN_PENALTY : CONFIG.RATES.ACTIVE_RETURN_BEST;
+        const bestB = (
+            (stateB.cash * CONFIG.RATES.CASH_RETURN) +
+            (stateB.etf * CONFIG.RATES.ETF_RETURN) +
+            (stateB.re * CONFIG.RATES.REAL_ESTATE_RETURN) +
+            (stateB.active * activeBest)
+        ) / 100;
+
+        return {
+            rateA,
+            rateB,
+            maxRiskB,
+            probB,
+            bestB,
+            activeWarningB: (stateB.active > 20 || groups.a.state.active > 20),
+            activeWarning: (stateB.active > 20)
+        };
+    }
+
+    // --- Chart ---
+    function updateChart(metrics) {
+        const ctx = document.getElementById('wealthChart');
+        if (!ctx) return;
+
+        // Re-query inputs directly to ensure fresh value reading
+        const elInitial = document.getElementById('inp-initial');
+        const elMonthly = document.getElementById('inp-monthly');
+
+        const initial = parseFloat(elInitial ? elInitial.value : 0) || 0;
+        const monthly = parseFloat(elMonthly ? elMonthly.value : 0) || 0;
+
+        const inflationRate = CONFIG.USER_INPUTS.calculatedInflation;
+        const labels = CONFIG.TIME_HORIZONS.map(y => `${y}年後`);
+
+        const dataA = CONFIG.TIME_HORIZONS.map(y => calculateFV(initial, monthly, metrics.rateA, y));
+        const dataB = CONFIG.TIME_HORIZONS.map(y => calculateFV(initial, monthly, metrics.rateB, y));
+        const dataInf = CONFIG.TIME_HORIZONS.map(y => calculateFV(initial, monthly, inflationRate, y));
+
+        if (wealthChart) {
+            wealthChart.data.datasets[0].data = dataInf;
+            wealthChart.data.datasets[1].data = dataA;
+            wealthChart.data.datasets[2].data = dataB;
+            wealthChart.update();
+        } else {
+            wealthChart = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: labels,
+                    datasets: [
+                        {
+                            type: 'line',
+                            label: '通膨及格線',
+                            data: dataInf,
+                            borderColor: '#EF4444',
+                            borderWidth: 2,
+                            borderDash: [5, 5],
+                            pointRadius: 0,
+                            order: 0
+                        },
+                        {
+                            label: '方案 A (現況)',
+                            data: dataA,
+                            backgroundColor: '#94a3b8',
+                            order: 2
+                        },
+                        {
+                            label: '方案 B (策略)',
+                            data: dataB,
+                            backgroundColor: '#F59E0B',
+                            order: 1
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            grid: { color: 'rgba(255,255,255,0.1)' },
+                            ticks: {
+                                color: '#aaa',
+                                callback: function (value) { return (value / 10000).toFixed(0) + '萬'; }
+                            }
+                        },
+                        x: { display: true, grid: { display: false }, ticks: { color: '#aaa' } }
+                    },
+                    plugins: {
+                        tooltip: {
+                            callbacks: {
+                                label: function (context) {
+                                    let result = context.raw;
+                                    return context.dataset.label + ': ' + Math.round(result / 10000).toLocaleString() + ' 萬';
+                                },
+                                footer: function (tooltipItems) {
+                                    let valA = 0, valB = 0;
+                                    tooltipItems.forEach(item => {
+                                        if (item.dataset.label.includes('方案 A')) valA = item.parsed.y;
+                                        if (item.dataset.label.includes('方案 B')) valB = item.parsed.y;
+                                    });
+                                    if (valA && valB) {
+                                        const gap = valB - valA;
+                                        return '財富差距: ' + (gap > 0 ? '+' : '') + Math.round(gap / 10000).toLocaleString() + ' 萬';
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        // V3.2 Update Wealth Gap Card
+        const lastA = dataA[dataA.length - 1];
+        const lastB = dataB[dataB.length - 1];
+        const gap = lastB - lastA;
+        const gapEl = document.getElementById('val-wealth-gap');
+
+        if (gapEl) {
+            const gapWan = Math.round(gap / 10000).toLocaleString();
+            gapEl.innerText = (gap > 0 ? '+' : '') + gapWan + ' 萬';
+            gapEl.style.color = gap >= 0 ? 'var(--accent)' : 'var(--danger)';
+        }
+    }
+
+    function updateUI() {
+        // Sync Labels Group A
+        Object.keys(groups.a.state).forEach(k => groups.a.labels[k].innerText = `${groups.a.state[k]}%`);
+        // Sync Labels Group B
+        Object.keys(groups.b.state).forEach(k => groups.b.labels[k].innerText = `${groups.b.state[k]}%`);
+
+        const metrics = calculateMetrics();
+
+        finInputs.rateA.innerText = `${metrics.rateA.toFixed(1)}%`;
+        finInputs.rateB.innerText = `${metrics.rateB.toFixed(1)}%`;
+
+        // Dashboard uses Plan B Stats
+        outputs.return.innerText = (metrics.rateB > 0 ? '+' : '') + `${metrics.rateB.toFixed(1)}%`;
+        outputs.return.style.color = (metrics.rateB < 0) ? 'var(--danger)' : 'var(--white)';
+        outputs.risk.innerText = `${metrics.maxRiskB.toFixed(1)}%`;
+        outputs.prob.innerText = `${Math.round(metrics.probB)}%`;
+
+        // Range Bar Logic Removed per user request
+
+        // Advanced Feedback Logic
+        const state = groups.b.state;
+        const totalCore = state.etf + state.re;
+        let scenarioKey = 'DEFAULT';
+
+        // 1. Danger Check (Always Priority #1)
+        if (state.active > 20) {
+            scenarioKey = 'DANGER_ACTIVE';
+        }
+        // 2. Cash Dominant (>50%)
+        else if (state.cash > 50) {
+            scenarioKey = 'CASH_DOMINANT';
+        }
+        // 3. RE Dominant (>40% - RE usually implies liquidity lock)
+        else if (state.re > 40) {
+            scenarioKey = 'RE_DOMINANT';
+        }
+        // 4. ETF Dominant (>50%)
+        else if (state.etf > 50) {
+            scenarioKey = 'ETF_DOMINANT';
+        }
+        // 5. Balanced / Golden Ratio
+        // Active is 5-20% (Satellite) AND there is substantial Core
+        else if (state.active >= 5 && state.active <= 20 && totalCore >= 40) {
+            scenarioKey = 'BALANCED';
+        }
+
+        const feedbackConfig = CONFIG.SCENARIO_TEXT[scenarioKey];
+
+        // Render HTML
+        outputs.feedback.innerHTML = `
+            <h4 style="margin-bottom:0.5rem; color:${feedbackConfig.TITLE.includes('警告') ? 'var(--danger)' : 'var(--white)'}">
+                ${feedbackConfig.TITLE}
+            </h4>
+            ${feedbackConfig.HTML}
+        `;
+        outputs.feedback.style.color = '#e2e8f0'; // Reset base color text, let HTML handle specifics
+
+        updateChart(metrics);
+    }
+
+    // Init
+    updateUI();
+}
