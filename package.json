@@ -1,0 +1,15 @@
+{
+  "name": "asset-allocation-page",
+  "version": "1.0.0",
+  "description": "Asset Allocation Simulator",
+  "main": "src/index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "format": "prettier --write '**/*.{js,css,json,md}'"
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@cloudflare/kv-asset-handler": "^0.3.0"
+  }
+}
