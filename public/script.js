@@ -8,6 +8,7 @@
 document.addEventListener('DOMContentLoaded', () => {
     initInflationCalc();
     initSimulator();
+    initEmbedMode();
 });
 
 // --- Part 1: Inflation Calculator ---
@@ -420,4 +421,88 @@ function initSimulator() {
 
     // Init
     updateUI();
+}
+
+// --- Part 3: Embed & Fullscreen Logic ---
+function initEmbedMode() {
+    const urlParams = new URLSearchParams(window.location.search);
+    const isEmbed = urlParams.get('mode') === 'embed';
+
+    if (!isEmbed) return;
+
+    // Elements
+    const body = document.body;
+    const launcher = document.getElementById('embed-launcher');
+    const startBtn = document.getElementById('btn-start-embed');
+    const exitBtn = document.getElementById('btn-exit-fullscreen');
+
+    // 1. Initial State
+    body.classList.add('embed-mode');
+    launcher.classList.remove('hidden');
+    // Simulator hidden by CSS (body.embed-mode .simulator-section)
+
+    // 2. Start (Fullscreen) Handler
+    startBtn.addEventListener('click', () => {
+        enterFullscreen();
+    });
+
+    // 3. Exit Handler
+    exitBtn.addEventListener('click', () => {
+        exitFullscreen();
+    });
+
+    // 4. Native Fullscreen Change Listener
+    document.addEventListener('fullscreenchange', onFullscreenChange);
+    document.addEventListener('webkitfullscreenchange', onFullscreenChange);
+    document.addEventListener('mozfullscreenchange', onFullscreenChange);
+    document.addEventListener('MSFullscreenChange', onFullscreenChange);
+
+    function enterFullscreen() {
+        // Use document.documentElement to make the whole page fullscreen
+        const docEl = document.documentElement;
+        if (docEl.requestFullscreen) {
+            docEl.requestFullscreen();
+        } else if (docEl.mozRequestFullScreen) {
+            docEl.mozRequestFullScreen();
+        } else if (docEl.webkitRequestFullscreen) {
+            docEl.webkitRequestFullscreen();
+        } else if (docEl.msRequestFullscreen) {
+            docEl.msRequestFullscreen();
+        }
+        updateEmbedState(true);
+    }
+
+    function exitFullscreen() {
+        if (document.exitFullscreen) {
+            document.exitFullscreen();
+        } else if (document.mozCancelFullScreen) {
+            document.mozCancelFullScreen();
+        } else if (document.webkitExitFullscreen) {
+            document.webkitExitFullscreen();
+        } else if (document.msExitFullscreen) {
+            document.msExitFullscreen();
+        }
+        updateEmbedState(false);
+    }
+
+    function onFullscreenChange() {
+        const isFS = document.fullscreenElement ||
+            document.webkitFullscreenElement ||
+            document.mozFullScreenElement ||
+            document.msFullscreenElement;
+
+        updateEmbedState(!!isFS);
+    }
+
+    function updateEmbedState(isFullscreen) {
+        if (isFullscreen) {
+            body.classList.add('fullscreen-mode');
+            launcher.classList.add('hidden');
+            exitBtn.classList.remove('hidden');
+        } else {
+            body.classList.remove('fullscreen-mode');
+            launcher.classList.remove('hidden');
+            exitBtn.classList.add('hidden');
+        }
+    }
 }

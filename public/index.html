@@ -12,6 +12,7 @@
         href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=Noto+Sans+TC:wght@400;500;700&display=swap"
         rel="stylesheet">
     <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="embed.css">
     <!-- Chart.js CDN -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
@@ -44,6 +45,22 @@
 </head>
 
 <body>
+
+    <!-- Embed Launcher (Hidden by default, shown via JS if mode=embed) -->
+    <div id="embed-launcher" class="embed-launcher hidden">
+        <div class="launcher-content">
+            <h3>資產配置模擬器</h3>
+            <p>點擊下方按鈕開始規劃您的財富藍圖</p>
+            <button id="btn-start-embed" class="btn btn-primary btn-pulse">
+                <span class="icon">🚀</span> 開始使用
+            </button>
+        </div>
+    </div>
+
+    <!-- Exit Fullscreen Button (Fixed Overlay) -->
+    <button id="btn-exit-fullscreen" class="btn-exit-fs hidden" title="退出全螢幕">
+        ✕ 關閉
+    </button>
 
     <!-- Simulator Section (Standalone) -->
     <section id="simulator" class="section simulator-section">
