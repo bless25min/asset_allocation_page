@@ -424,6 +424,7 @@ function initSimulator() {
 }
 
 // --- Part 3: Embed & Fullscreen Logic ---
+// --- Part 3: Embed & Fullscreen Logic ---
 function initEmbedMode() {
     const urlParams = new URLSearchParams(window.location.search);
     const isEmbed = urlParams.get('mode') === 'embed';
@@ -435,16 +436,48 @@ function initEmbedMode() {
     const launcher = document.getElementById('embed-launcher');
     const startBtn = document.getElementById('btn-start-embed');
     const exitBtn = document.getElementById('btn-exit-fullscreen');
+    const newWindowBtn = document.getElementById('btn-new-window');
 
     // 1. Initial State
     body.classList.add('embed-mode');
     launcher.classList.remove('hidden');
     // Simulator hidden by CSS (body.embed-mode .simulator-section)
 
-    // 2. Start (Fullscreen) Handler
-    startBtn.addEventListener('click', () => {
-        enterFullscreen();
-    });
+    // Feature Detection: Check if Fullscreen is allowed
+    const isFullscreenEnabled = document.fullscreenEnabled ||
+        document.webkitFullscreenEnabled ||
+        document.mozFullScreenEnabled ||
+        document.msFullscreenEnabled;
+
+    // Prepare "New Window" link (points to same page but clean URL)
+    // Remove query params to avoid infinite embed loop in new window if preferred, 
+    // OR keep them but ensure the user gets a full view.
+    // Let's just point to index.html without embed param so it presents as standalone.
+    const cleanUrl = window.location.href.split('?')[0];
+    if (newWindowBtn) {
+        newWindowBtn.href = cleanUrl;
+
+        // Strategy: 
+        // If Fullscreen BLOCKED: Show "Open New Window" prominently
+        // If Fullscreen OK: Show "Start" (FS) + "Open New Window" (Secondary)
+        if (!isFullscreenEnabled) {
+            startBtn.innerHTML = '<span class="icon">⎋</span> 在新視窗開啟';
+            // Repurpose start button to open new window
+            startBtn.onclick = () => window.open(cleanUrl, '_blank');
+            // Hide the secondary link since the main button does it now
+            newWindowBtn.classList.add('hidden');
+        } else {
+            // Fullscreen might be possible, but let's show the secondary link just in case
+            newWindowBtn.classList.remove('hidden');
+        }
+    }
+
+    // 2. Start (Fullscreen) Handler (Only if FS enabled)
+    if (isFullscreenEnabled) {
+        startBtn.addEventListener('click', () => {
+            enterFullscreen();
+        });
+    }
 
     // 3. Exit Handler
     exitBtn.addEventListener('click', () => {
@@ -458,10 +491,16 @@ function initEmbedMode() {
     document.addEventListener('MSFullscreenChange', onFullscreenChange);
 
     function enterFullscreen() {
-        // Use document.documentElement to make the whole page fullscreen
         const docEl = document.documentElement;
         if (docEl.requestFullscreen) {
-            docEl.requestFullscreen();
+            docEl.requestFullscreen().catch(err => {
+                console.warn("Fullscreen failed:", err);
+                // Fallback if promise rejects (e.g. user denied or obscure policy)
+                // We can't auto-open window here easily due to async loss of gesture,
+                // but we can alert or update UI.
+                alert("無法進入全螢幕模式，請嘗試點擊「在新視窗開啟」。");
+                newWindowBtn.classList.remove('hidden');
+            });
         } else if (docEl.mozRequestFullScreen) {
             docEl.mozRequestFullScreen();
         } else if (docEl.webkitRequestFullscreen) {

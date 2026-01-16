@@ -120,3 +120,26 @@ body.embed-mode.fullscreen-mode .simulator-section {
         font-size: 1.25rem;
     }
 }
+
+/* Secondary Link Style */
+.btn-text {
+    display: inline-block;
+    color: #94a3b8;
+    text-decoration: none;
+    font-size: 0.9rem;
+    padding: 0.5rem 1rem;
+    border: 1px solid transparent;
+    border-radius: 4px;
+    transition: all 0.2s;
+    cursor: pointer;
+}
+
+.btn-text:hover {
+    color: var(--white);
+    text-decoration: underline;
+    background: rgba(255, 255, 255, 0.05);
+}
+
+.btn-text.hidden {
+    display: none;
+}
