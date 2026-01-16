@@ -226,12 +226,41 @@ function initSimulator() {
             (stateB.active * CONFIG.RISK.ACTIVE_RISK)
         ) / 100;
 
+        // --- New Probability Logic: Contribution Weighted ---
+        // User Insight: Probability should depend on WHERE the money comes from, not just where money IS.
+        // If 10% allocation generates 90% of returns, the risk profile is dominated by that 10%.
+
+        // 1. Calculate weighted return contribution for each asset
+        const contribCash = stateB.cash * CONFIG.RATES.CASH_RETURN;
+        const contribEtf = stateB.etf * CONFIG.RATES.ETF_RETURN;
+        const contribRe = stateB.re * CONFIG.RATES.REAL_ESTATE_RETURN;
+        const contribActive = stateB.active * CONFIG.RATES.ACTIVE_RETURN_AVG;
+
+        const totalReturnContrib = contribCash + contribEtf + contribRe + contribActive;
+
+        // 2. Calculate Contribution Weights (Avoid divide by zero)
+        // If total return is <= 0 (unlikely but possible), fall back to simple allocation weights
+        let wCash, wEtf, wRe, wActive;
+
+        if (totalReturnContrib > 0.001) {
+            wCash = contribCash / totalReturnContrib;
+            wEtf = contribEtf / totalReturnContrib;
+            wRe = contribRe / totalReturnContrib;
+            wActive = contribActive / totalReturnContrib;
+        } else {
+            wCash = stateB.cash / 100;
+            wEtf = stateB.etf / 100;
+            wRe = stateB.re / 100;
+            wActive = stateB.active / 100;
+        }
+
+        // 3. Calculate Weighted Probability
         const probB = (
-            (stateB.cash * CONFIG.PROBABILITY.CASH_PROB) +
-            (stateB.etf * CONFIG.PROBABILITY.ETF_PROB) +
-            (stateB.re * CONFIG.PROBABILITY.REAL_ESTATE_PROB) +
-            (stateB.active * CONFIG.PROBABILITY.ACTIVE_PROB)
-        ) / 100;
+            (wCash * CONFIG.PROBABILITY.CASH_PROB) +
+            (wEtf * CONFIG.PROBABILITY.ETF_PROB) +
+            (wRe * CONFIG.PROBABILITY.REAL_ESTATE_PROB) +
+            (wActive * CONFIG.PROBABILITY.ACTIVE_PROB)
+        );
 
         // Best case logic for Bar
         let activeBest = (stateB.active > 20) ? CONFIG.RATES.ACTIVE_RETURN_PENALTY : CONFIG.RATES.ACTIVE_RETURN_BEST;
