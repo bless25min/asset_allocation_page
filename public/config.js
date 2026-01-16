@@ -47,6 +47,7 @@ const CONFIG = {
     // 6. Simulator Feedback Text (Rich HTML Analysis)
     SCENARIO_TEXT: {
         // 1. Speculator (>20% Active)
+        // 1. Speculator (>20% Active)
         DANGER_ACTIVE: {
             TITLE: "⚠️ 極高風險：你的財富正在走鋼索",
             HTML: `
@@ -56,7 +57,27 @@ const CONFIG = {
                     <li><strong>關鍵盲點：</strong> 歷史上 90% 的散戶輸在「過度交易」。你現在不是在新創事業，而是在賭博。</li>
                 </ul>`
         },
-        // 2. Cash Hoarder (>50% Cash)
+        // 2. Liquidity Crisis (Cash < 15%)
+        LIQUIDITY_CRISIS: {
+            TITLE: "⚠️ 資產富豪，現金乞丐：脆弱的繁榮",
+            HTML: `
+                <ul class='analysis-list'>
+                    <li><strong>心理解析：</strong> 你極度追求資金效率，認為現金是拖油瓶。你看到了資產的增值潛力，卻忽略了生活的隨機性。</li>
+                    <li><strong>隱形代價：</strong> 「黑天鵝」總是發生在你最缺錢的時候。當意外發生 (失業、生病) 且市場大跌時，你將被迫賤賣資產求生。</li>
+                    <li><strong>關鍵盲點：</strong> 現金雖然長期貶值，但它是「選擇權」。沒有現金緩衝的投資組合，就像沒有安全氣囊的法拉利。</li>
+                </ul>`
+        },
+        // 3. No Real Estate (RE < 5%)
+        NO_REAL_ESTATE: {
+            TITLE: "⚠️ 無殼蝸牛：你的資產缺乏定海神針",
+            HTML: `
+                <ul class='analysis-list'>
+                    <li><strong>心理解析：</strong> 你可能覺得房價太高，或者認為買房不如買股。你選擇了高流動性，卻犧牲了穩定性。</li>
+                    <li><strong>隱形代價：</strong> 房產是唯一能讓你開 5 倍槓桿且不會被斷頭的資產。錯過房產，不僅是錯過增值，更是錯過「抗通膨」的最佳盾牌。</li>
+                    <li><strong>關鍵盲點：</strong> 當租金隨著通膨每年上漲時，你的股票獲利有很大一部分要拿去繳給房東。擁有自住房，其實是對沖「生存成本」的必要手段。</li>
+                </ul>`
+        },
+        // 4. Cash Hoarder (>50% Cash)
         CASH_DOMINANT: {
             TITLE: "📉 溫水煮青蛙：你正在「安全」地變窮",
             HTML: `
@@ -66,7 +87,7 @@ const CONFIG = {
                     <li><strong>關鍵盲點：</strong> 「不投資」本身就是一種 all-in 現金的投資，而且長期勝率極低。</li>
                 </ul>`
         },
-        // 3. Landlord (>40% RE)
+        // 4. Landlord (>40% RE)
         RE_DOMINANT: {
             TITLE: "🏠 資產焦慮：你看得到財富，卻用不到",
             HTML: `
@@ -76,7 +97,7 @@ const CONFIG = {
                     <li><strong>關鍵盲點：</strong> 房產雖好，但不能當飯吃。你需要的是「源源不絕的現金流」，而不僅僅是帳面上的磚頭。</li>
                 </ul>`
         },
-        // 4. Indexer (>50% ETF)
+        // 5. Indexer (>50% ETF)
         ETF_DOMINANT: {
             TITLE: "📈 苦行僧式的積累：方向正確，但缺乏激情",
             HTML: `
@@ -86,17 +107,17 @@ const CONFIG = {
                     <li><strong>關鍵盲點：</strong> 守成有餘，進攻不足。你可能低估了自己透過學習創造 (超額報酬) 的潛力。</li>
                 </ul>`
         },
-        // 5. The Golden Ratio (Active 5-20%, Cash < 40, Core > 40)
+        // 6. The Golden Ratio (Active 5-20%, Cash > 15%, Core > 40)
         BALANCED: {
             TITLE: "✨ 財富自由的入場券：你是資產的主人",
             HTML: `
                 <ul class='analysis-list'>
-                    <li><strong>心理解析：</strong> 你不再為錢工作，而是讓錢為你工作。你理解風險，並且學會了駕馭它。</li>
-                    <li><strong>結構優勢：</strong> 你的配置像一個精密的生態系。房產/ETF 提供穩定的養分，主動交易則提供了突變演化的機會。</li>
+                    <li><strong>心理解析：</strong> 你不再為錢工作，而是讓錢為你工作。你理解風險 (保留現金緩衝)，並且學會了駕馭它。</li>
+                    <li><strong>結構優勢：</strong> 你的配置像一個精密的生態系。房產/ETF 提供穩定的養分，現金提供安全感，主動交易則提供了突變演化的機會。</li>
                     <li><strong>未來展望：</strong> 這是讓人「晚上睡得著，早上會笑醒」的配置。保持現狀，時間是你最好的朋友。</li>
                 </ul>`
         },
-        // 6. Default/Unbalanced
+        // 7. Default/Unbalanced
         DEFAULT: {
             TITLE: "💡 尋找你的定位中...",
             HTML: `
