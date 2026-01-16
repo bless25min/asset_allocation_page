@@ -665,9 +665,19 @@ h3 {
     }
 
     .sim-inputs,
-    .sim-dashboard {
+    .sim-dashboard,
+    .fin-inputs-grid {
         grid-template-columns: 1fr;
         /* Stack on mobile */
+    }
+
+    /* Reduce padding on mobile to prevent overflow */
+    .simulator-container {
+        padding: 1rem;
+    }
+
+    .financial-inputs-section {
+        padding: 1rem;
     }
 
     /* Table to Cards for Mobile */
