@@ -416,22 +416,22 @@ function initSimulator() {
         if (state.active > 20) {
             scenarioKey = 'DANGER_ACTIVE';
         }
-        // 2. Cash Dominant (>50%)
-        else if (state.cash > 50) {
-            scenarioKey = 'CASH_DOMINANT';
-        }
-        // 3. RE Dominant (>40% - RE usually implies liquidity lock)
-        else if (state.re > 40) {
-            scenarioKey = 'RE_DOMINANT';
-        }
-        // 4. ETF Dominant (>50%)
-        else if (state.etf > 50) {
-            scenarioKey = 'ETF_DOMINANT';
-        }
-        // 5. Balanced / Golden Ratio
+        // 2. Balanced / Golden Ratio (Prioritize Mix over Single Asset)
         // Active is 5-20% (Satellite) AND there is substantial Core
         else if (state.active >= 5 && state.active <= 20 && totalCore >= 40) {
             scenarioKey = 'BALANCED';
+        }
+        // 3. Cash Dominant (>50%)
+        else if (state.cash > 50) {
+            scenarioKey = 'CASH_DOMINANT';
+        }
+        // 4. RE Dominant (>40% - RE usually implies liquidity lock)
+        else if (state.re > 40) {
+            scenarioKey = 'RE_DOMINANT';
+        }
+        // 5. ETF Dominant (>50%)
+        else if (state.etf > 50) {
+            scenarioKey = 'ETF_DOMINANT';
         }
 
         const feedbackConfig = CONFIG.SCENARIO_TEXT[scenarioKey];
