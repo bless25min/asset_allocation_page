@@ -9,4 +9,4 @@ binding = "ASSETS"
 [[d1_databases]]
 binding = "DB" # Available in your Worker on env.DB
 database_name = "asset-db"
-database_id = "YOUR_DATABASE_ID_HERE" # User will need to run `wrangler d1 create asset-db` to get this
+database_id = "731e746f-7fcc-4f16-a209-79d3a2eaa1bb" 
