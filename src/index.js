@@ -116,21 +116,21 @@ app.get('/api/stats', async (c) => {
     const groups = {
       small: {
         label: '小資族 (< 100萬)', count: 0,
-        a: { cash: 0, etf: 0, re: 0, active: 0, ret: 0 },
-        b: { cash: 0, etf: 0, re: 0, active: 0, ret: 0 },
-        inf: { items: {}, prices: 0 }
+        a: { cash: 0, etf: 0, re: 0, active: 0, ret: 0, count: 0 },
+        b: { cash: 0, etf: 0, re: 0, active: 0, ret: 0, count: 0 },
+        inf: { items: {}, prices: 0, count: 0 }
       },
       middle: {
         label: '中產階級 (100-500萬)', count: 0,
-        a: { cash: 0, etf: 0, re: 0, active: 0, ret: 0 },
-        b: { cash: 0, etf: 0, re: 0, active: 0, ret: 0 },
-        inf: { items: {}, prices: 0 }
+        a: { cash: 0, etf: 0, re: 0, active: 0, ret: 0, count: 0 },
+        b: { cash: 0, etf: 0, re: 0, active: 0, ret: 0, count: 0 },
+        inf: { items: {}, prices: 0, count: 0 }
       },
       large: {
         label: '富裕層 (> 500萬)', count: 0,
-        a: { cash: 0, etf: 0, re: 0, active: 0, ret: 0 },
-        b: { cash: 0, etf: 0, re: 0, active: 0, ret: 0 },
-        inf: { items: {}, prices: 0 }
+        a: { cash: 0, etf: 0, re: 0, active: 0, ret: 0, count: 0 },
+        b: { cash: 0, etf: 0, re: 0, active: 0, ret: 0, count: 0 },
+        inf: { items: {}, prices: 0, count: 0 }
       }
     };
 
@@ -148,26 +148,35 @@ app.get('/api/stats', async (c) => {
 
         g.count++;
 
-        // Panel A
-        const allocA = allocRaw.panelA || {};
-        g.a.cash += (allocA.cash || 0);
-        g.a.etf += (allocA.etf || 0);
-        g.a.re += (allocA.re || 0);
-        g.a.active += (allocA.active || 0);
-        g.a.ret += (metrics.rateA || 0);
+        // Panel A (Only if valid)
+        const allocA = allocRaw.panelA;
+        if (allocA && (allocA.cash + allocA.etf + allocA.re + allocA.active > 0)) {
+          g.a.count++;
+          g.a.cash += (allocA.cash || 0);
+          g.a.etf += (allocA.etf || 0);
+          g.a.re += (allocA.re || 0);
+          g.a.active += (allocA.active || 0);
+          g.a.ret += (metrics.rateA || 0);
+        }
 
-        // Panel B
-        const allocB = allocRaw.panelB || (allocRaw.cash ? allocRaw : {});
-        g.b.cash += (allocB.cash || 0);
-        g.b.etf += (allocB.etf || 0);
-        g.b.re += (allocB.re || 0);
-        g.b.active += (allocB.active || 0);
-        g.b.ret += (metrics.rateB || 0);
+        // Panel B (Only if valid)
+        const allocB = allocRaw.panelB || (allocRaw.cash ? allocRaw : null);
+        if (allocB && (allocB.cash + allocB.etf + allocB.re + allocB.active > 0)) {
+          g.b.count++;
+          g.b.cash += (allocB.cash || 0);
+          g.b.etf += (allocB.etf || 0);
+          g.b.re += (allocB.re || 0);
+          g.b.active += (allocB.active || 0);
+          g.b.ret += (metrics.rateB || 0);
+        }
 
-        // Inflation (Corrected path: now in metrics_data)
-        const item = metrics.infItem || '其他';
-        g.inf.items[item] = (g.inf.items[item] || 0) + 1;
-        g.inf.prices += parseFloat(metrics.infPrice || 0);
+        // Inflation (Only if valid)
+        if (metrics.infPrice > 0) {
+          g.inf.count++;
+          const item = metrics.infItem || '其他';
+          g.inf.items[item] = (g.inf.items[item] || 0) + 1;
+          g.inf.prices += parseFloat(metrics.infPrice || 0);
+        }
 
       } catch (e) { /* skip malformed */ }
     }
@@ -192,22 +201,22 @@ app.get('/api/stats', async (c) => {
         label: g.label,
         count: g.count,
         a: {
-          cash: Math.round(g.a.cash / g.count),
-          etf: Math.round(g.a.etf / g.count),
-          re: Math.round(g.a.re / g.count),
-          active: Math.round(g.a.active / g.count),
-          avgRet: (g.a.ret / g.count).toFixed(1)
+          cash: g.a.count ? Math.round(g.a.cash / g.a.count) : 0,
+          etf: g.a.count ? Math.round(g.a.etf / g.a.count) : 0,
+          re: g.a.count ? Math.round(g.a.re / g.a.count) : 0,
+          active: g.a.count ? Math.round(g.a.active / g.a.count) : 0,
+          avgRet: g.a.count ? (g.a.ret / g.a.count).toFixed(1) : "0.0"
         },
         b: {
-          cash: Math.round(g.b.cash / g.count),
-          etf: Math.round(g.b.etf / g.count),
-          re: Math.round(g.b.re / g.count),
-          active: Math.round(g.b.active / g.count),
-          avgRet: (g.b.ret / g.count).toFixed(1)
+          cash: g.b.count ? Math.round(g.b.cash / g.b.count) : 0,
+          etf: g.b.count ? Math.round(g.b.etf / g.b.count) : 0,
+          re: g.b.count ? Math.round(g.b.re / g.b.count) : 0,
+          active: g.b.count ? Math.round(g.b.active / g.b.count) : 0,
+          avgRet: g.b.count ? (g.b.ret / g.b.count).toFixed(1) : "0.0"
         },
         inf: {
           topItem: topItem,
-          avgPrice: Math.round(g.inf.prices / g.count)
+          avgPrice: g.inf.count ? Math.round(g.inf.prices / g.inf.count) : 0
         }
       };
     });

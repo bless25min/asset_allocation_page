@@ -624,11 +624,17 @@ async function initAuth() {
         document.getElementById('btn-save-sim').addEventListener('click', saveSimulation);
         document.getElementById('btn-view-stats').addEventListener('click', loadStats);
 
-        // Modal Close Actions (Binding both buttons)
+        // Modal Close Actions (Binding both buttons + backdrop)
         const closeStats = () => document.getElementById('stats-modal').classList.add('hidden');
         document.getElementById('btn-close-stats').addEventListener('click', closeStats);
+
         const footerBtn = document.getElementById('btn-close-stats-footer');
         if (footerBtn) footerBtn.addEventListener('click', closeStats);
+
+        const overlay = document.getElementById('stats-modal');
+        overlay.addEventListener('click', (e) => {
+            if (e.target === overlay) closeStats();
+        });
 
 
     } catch (error) {
