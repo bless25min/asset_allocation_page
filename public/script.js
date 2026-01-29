@@ -598,9 +598,13 @@ async function initAuth() {
             updateAuthState(false);
         }
 
+        // Restore any pending state from pre-login
+        restorePendingState();
+
         // Bind Actions
         document.getElementById('btn-login').addEventListener('click', () => {
             if (!liff.isLoggedIn()) {
+                savePendingState();
                 liff.login();
             }
         });
@@ -651,7 +655,7 @@ async function handleLoggedInUser() {
 
 
 
-function updateAuthState() {
+function updateAuthState(isLoggedIn) {
     const userId = localStorage.getItem('line_user_id');
     const userName = localStorage.getItem('line_user_name');
     const userPic = localStorage.getItem('line_user_pic');
@@ -754,19 +758,31 @@ async function saveSimulation() {
 }
 
 async function loadStats() {
-    // 1. Force Login Check
-    if (!liff.isLoggedIn()) {
-        if (confirm('查看社群配置統計資訊需要登入 LINE，是否現在登入？')) {
-            liff.login();
-        }
-        return;
-    }
-
     const modal = document.getElementById('stats-modal');
     modal.classList.remove('hidden');
 
     const countEl = document.getElementById('stats-count');
     const bodyEl = document.getElementById('stats-body');
+
+    // 1. Force Login Check (UI Version)
+    if (!liff.isLoggedIn()) {
+        countEl.innerText = '需先登入';
+        bodyEl.innerHTML = `
+            <tr>
+                <td colspan="6" style="padding: 3rem 1rem;">
+                    <div style="margin-bottom: 1.5rem;">
+                        <img src="https://upload.wikimedia.org/wikipedia/commons/4/41/LINE_logo.svg" alt="LINE" width="50" style="margin-bottom:1rem;">
+                        <h4 style="color: #fff; margin-bottom: 0.5rem;">想看大家怎麼配嗎？</h4>
+                        <p style="font-size: 0.9rem; color: #94a3b8;">登入後即可解鎖社群大數據，查看不同本金規模的配置參考。</p>
+                    </div>
+                    <button onclick="saveAndLogin()" class="btn btn-primary" style="background-color: #06C755; border:none; padding: 0.8rem 2rem; font-size: 1rem;">
+                        使用 LINE 帳號登入
+                    </button>
+                </td>
+            </tr>
+        `;
+        return;
+    }
 
     countEl.innerText = '...';
     bodyEl.innerHTML = '<tr><td colspan="6">載入數據中...</td></tr>';
@@ -784,7 +800,7 @@ async function loadStats() {
                             由於統計結果為進階功能，請在授權頁面中勾選「加入好友」。<br>
                             若您剛才遺漏了，請點擊下方按鈕重新授權。
                         </p>
-                        <button onclick="liff.login()" class="btn btn-primary" style="display:inline-block;">
+                        <button onclick="saveAndLogin()" class="btn btn-primary" style="display:inline-block;">
                             ✅ 重新登入並加入好友
                         </button>
                     </td>
@@ -825,6 +841,53 @@ async function loadStats() {
         console.error(e);
         countEl.innerText = '(Error)';
         bodyEl.innerHTML = '<tr><td colspan="6">連線錯誤</td></tr>';
+    }
+}
+
+// --- Persistence Helpers ---
+function saveAndLogin() {
+    savePendingState();
+    liff.login();
+}
+
+function savePendingState() {
+    try {
+        const state = {
+            initial: document.getElementById('inp-initial').value,
+            monthly: document.getElementById('inp-monthly').value,
+            cash: document.getElementById('slider-b-cash').value,
+            etf: document.getElementById('slider-b-etf').value,
+            re: document.getElementById('slider-b-re').value,
+            active: document.getElementById('slider-b-active').value
+        };
+        localStorage.setItem('pending_sim_state', JSON.stringify(state));
+    } catch (e) {
+        console.error('Save State Failed:', e);
+    }
+}
+
+function restorePendingState() {
+    const saved = localStorage.getItem('pending_sim_state');
+    if (!saved) return;
+
+    try {
+        const state = JSON.parse(saved);
+        if (state.initial) document.getElementById('inp-initial').value = state.initial;
+        if (state.monthly) document.getElementById('inp-monthly').value = state.monthly;
+        if (state.cash) document.getElementById('slider-b-cash').value = state.cash;
+        if (state.etf) document.getElementById('slider-b-etf').value = state.etf;
+        if (state.re) document.getElementById('slider-b-re').value = state.re;
+        if (state.active) document.getElementById('slider-b-active').value = state.active;
+
+        // Trigger simulator recalculation
+        // Dispatch 'input' event on any numeric slider to trigger the listener in initSimulator
+        const event = new Event('input', { bubbles: true });
+        document.getElementById('slider-b-cash').dispatchEvent(event);
+
+    } catch (e) {
+        console.error('Restore State Failed:', e);
+    } finally {
+        localStorage.removeItem('pending_sim_state');
     }
 }
 
