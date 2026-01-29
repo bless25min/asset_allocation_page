@@ -902,22 +902,30 @@ function switchStatsGroup(groupKey) {
     }
 
     // Render Table A (Current)
-    aBody.innerHTML = `
-        <tr><td>現金/定存</td><td>${g.a.cash}%</td></tr>
-        <tr><td>指數/ETF</td><td>${g.a.etf}%</td></tr>
-        <tr><td>房地產</td><td>${g.a.re}%</td></tr>
-        <tr><td>主動投資</td><td>${g.a.active}%</td></tr>
-        <tr class="accent-row"><td>平均預期報酬</td><td>${g.a.avgRet}%</td></tr>
-    `;
+    if (!g.a || g.a.count === 0) {
+        aBody.innerHTML = '<tr><td colspan="2" style="text-align:center; padding: 2rem; color: #64748b;">尚無有效配置數據</td></tr>';
+    } else {
+        aBody.innerHTML = `
+            <tr><td>現金/定存</td><td>${g.a.cash}%</td></tr>
+            <tr><td>指數/ETF</td><td>${g.a.etf}%</td></tr>
+            <tr><td>房地產</td><td>${g.a.re}%</td></tr>
+            <tr><td>主動投資</td><td>${g.a.active}%</td></tr>
+            <tr class="accent-row"><td>平均預期報酬</td><td>${g.a.avgRet}%</td></tr>
+        `;
+    }
 
     // Render Table B (Target)
-    bBody.innerHTML = `
-        <tr><td>現金/定存</td><td>${g.b.cash}%</td></tr>
-        <tr><td>指數/ETF</td><td>${g.b.etf}%</td></tr>
-        <tr><td>房地產</td><td>${g.b.re}%</td></tr>
-        <tr><td>主動投資</td><td>${g.b.active}%</td></tr>
-        <tr class="accent-row"><td>平均期望報酬</td><td>${g.b.avgRet}%</td></tr>
-    `;
+    if (!g.b || g.b.count === 0) {
+        bBody.innerHTML = '<tr><td colspan="2" style="text-align:center; padding: 2rem; color: #64748b;">尚無有效配置數據</td></tr>';
+    } else {
+        bBody.innerHTML = `
+            <tr><td>現金/定存</td><td>${g.b.cash}%</td></tr>
+            <tr><td>指數/ETF</td><td>${g.b.etf}%</td></tr>
+            <tr><td>房地產</td><td>${g.b.re}%</td></tr>
+            <tr><td>主動投資</td><td>${g.b.active}%</td></tr>
+            <tr class="accent-row"><td>平均期望報酬</td><td>${g.b.avgRet}%</td></tr>
+        `;
+    }
 
     // Render Inflation Feed
     if (!g.inf.feed || g.inf.feed.length === 0) {
