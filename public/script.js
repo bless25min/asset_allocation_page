@@ -623,9 +623,13 @@ async function initAuth() {
         document.getElementById('btn-logout').addEventListener('click', logout);
         document.getElementById('btn-save-sim').addEventListener('click', saveSimulation);
         document.getElementById('btn-view-stats').addEventListener('click', loadStats);
-        document.getElementById('btn-close-stats').addEventListener('click', () => {
-            document.getElementById('stats-modal').classList.add('hidden');
-        });
+
+        // Modal Close Actions (Binding both buttons)
+        const closeStats = () => document.getElementById('stats-modal').classList.add('hidden');
+        document.getElementById('btn-close-stats').addEventListener('click', closeStats);
+        const footerBtn = document.getElementById('btn-close-stats-footer');
+        if (footerBtn) footerBtn.addEventListener('click', closeStats);
+
 
     } catch (error) {
         console.error('LIFF Init Failed:', error);

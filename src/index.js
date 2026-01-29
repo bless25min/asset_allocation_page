@@ -164,10 +164,10 @@ app.get('/api/stats', async (c) => {
         g.b.active += (allocB.active || 0);
         g.b.ret += (metrics.rateB || 0);
 
-        // Inflation
-        const item = input.infItem || '其他';
+        // Inflation (Corrected path: now in metrics_data)
+        const item = metrics.infItem || '其他';
         g.inf.items[item] = (g.inf.items[item] || 0) + 1;
-        g.inf.prices += parseFloat(input.infPrice || 0);
+        g.inf.prices += parseFloat(metrics.infPrice || 0);
 
       } catch (e) { /* skip malformed */ }
     }
