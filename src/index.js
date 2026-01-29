@@ -115,19 +115,19 @@ app.get('/api/stats', async (c) => {
 
     const groups = {
       small: {
-        label: '小資族 (< 100萬)', count: 0,
+        label: '小資族 (< 300萬)', count: 0,
         a: { cash: 0, etf: 0, re: 0, active: 0, ret: 0, count: 0 },
         b: { cash: 0, etf: 0, re: 0, active: 0, ret: 0, count: 0 },
         inf: { items: [], count: 0 }
       },
       middle: {
-        label: '中產階級 (100-500萬)', count: 0,
+        label: '中產階級 (300-3000萬)', count: 0,
         a: { cash: 0, etf: 0, re: 0, active: 0, ret: 0, count: 0 },
         b: { cash: 0, etf: 0, re: 0, active: 0, ret: 0, count: 0 },
         inf: { items: [], count: 0 }
       },
       large: {
-        label: '富裕層 (> 500萬)', count: 0,
+        label: '富裕層 (> 3000萬)', count: 0,
         a: { cash: 0, etf: 0, re: 0, active: 0, ret: 0, count: 0 },
         b: { cash: 0, etf: 0, re: 0, active: 0, ret: 0, count: 0 },
         inf: { items: [], count: 0 }
@@ -142,8 +142,8 @@ app.get('/api/stats', async (c) => {
 
         const initial = parseFloat(input.initial || 0);
         let g;
-        if (initial < 1000000) g = groups.small;
-        else if (initial <= 5000000) g = groups.middle;
+        if (initial < 3000000) g = groups.small;
+        else if (initial < 30000000) g = groups.middle;
         else g = groups.large;
 
         g.count++;
