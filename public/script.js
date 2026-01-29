@@ -5,10 +5,11 @@
  */
 
 // Wait for DOM
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
     initInflationCalc();
     initSimulator();
     initEmbedMode();
+    await initAuth();
 });
 
 // --- Part 1: Inflation Calculator ---
@@ -182,6 +183,17 @@ function initSimulator() {
         inp.addEventListener('input', updateUI);
     });
     document.addEventListener('inflationUpdated', updateUI);
+
+    // Global listener for state restoration
+    document.addEventListener('stateRestored', () => {
+        ['a', 'b'].forEach(gKey => {
+            const group = groups[gKey];
+            Object.keys(group.sliders).forEach(sKey => {
+                group.state[sKey] = parseInt(group.sliders[sKey].value) || 0;
+            });
+        });
+        updateUI();
+    });
 
     // --- Math ---
     function getWeightedReturn(reqState) {
@@ -948,5 +960,4 @@ function restorePendingState() {
     }
 }
 
-// Init Auth Logic
-document.addEventListener('DOMContentLoaded', initAuth);
+

@@ -167,8 +167,13 @@
     background: #1e293b;
     padding: 2rem;
     border-radius: 16px;
-    width: 90%;
-    max-width: 500px;
+    width: 95%;
+    max-width: 900px;
+    /* Increased for 3-col layout */
+    max-height: 90vh;
+    /* Viewport height constraint */
+    overflow-y: auto;
+    /* Scroll if too long */
     position: relative;
     border: 1px solid rgba(255, 255, 255, 0.1);
     text-align: center;
