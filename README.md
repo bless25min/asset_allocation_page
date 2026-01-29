@@ -72,5 +72,14 @@
 - **報酬率設定**：所有資產的預期報酬率與風險參數皆定義於 `public/config.js`。
 - **數據解耦**：前端數據採集已從 DOM ID 解耦，直接與 `CONFIG.USER_INPUTS` 狀態同步，確保 UI 變動不影響統計功能。
 
+## 📦 版本紀錄 (Changelog)
+
+### V3.5 Ad-Ready Stable (2026-01-29)
+**核心優化**：
+*   **效能革命 (Async Analysis)**：重構核心計算引擎，採用 `Debounce (1s)` + `Async UI` 策略。滑動滑桿時僅更新標籤，繁重計算延遲執行，徹底解決移動端卡頓問題。
+*   **視覺引導 (High-Vis CTA)**：針對 LINE 登入按鈕與教育轉化按鈕，導入高彩度脈衝光暈效果 (Green/Blue Pulse)，顯著提升點擊率。
+*   **合規風險 (Volatility Range)**：將單點風險值升級為「波動範圍 (Min ~ Max)」，並基於資產最佳狀況 (Best Case) 動態計算獲利上限，符合廣告合規要求。
+*   **數據追蹤**：全面植入 Meta Pixel (`CompleteRegistration`) 與網域驗證，支援廣告成效追蹤。
+
 ---
 *Developed with ❤️ for financial freedom.*
