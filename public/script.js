@@ -437,16 +437,19 @@ function initSimulator() {
         };
     }
 
-    // Debounced Chart Update (50ms delay is imperceptible but saves performance)
     // Debounced Analysis Update (Metrics + Feedback + Chart)
     // Separation of Concerns: 
-    // updateUI = Instant (Labels)
+    // updateUI = Instant (Labels + Loading Placeholder)
     // updateAnalysisResults = Delayed (Calculation + DOM thrashing + Chart)
     const debouncedUpdateAnalysis = debounce(updateAnalysisResults, 50);
 
+    let isAnalyzing = false; // State to track analyzing status
+
     function updateAnalysisResults() {
+        // Calculate
         const metrics = calculateMetrics();
 
+        // 1. Update Top Bar (Rates) - Restore real values
         if (finInputs.rateA) finInputs.rateA.innerText = `${metrics.rateA.toFixed(1)}%`;
         if (finInputs.rateB) finInputs.rateB.innerText = `${metrics.rateB.toFixed(1)}%`;
 
@@ -454,11 +457,10 @@ function initSimulator() {
         CONFIG.USER_INPUTS.lastRateA = metrics.rateA;
         CONFIG.USER_INPUTS.lastRateB = metrics.rateB;
 
-        // Dashboard uses Plan B Stats
+        // 2. Update Dashboard Stats - Restore real values
         outputs.return.innerText = (metrics.rateB > 0 ? '+' : '') + `${metrics.rateB.toFixed(1)}%`;
         outputs.return.style.color = (metrics.rateB < 0) ? 'var(--danger)' : 'var(--white)';
 
-        // Volatility Range Logic (Min ~ Max)
         const minRisk = metrics.maxRiskB.toFixed(1);
         const maxReward = metrics.bestB.toFixed(1);
         const maxSign = metrics.bestB > 0 ? '+' : '';
@@ -466,43 +468,23 @@ function initSimulator() {
 
         outputs.prob.innerText = `${Math.round(metrics.probB)}%`;
 
-        // Advanced Feedback Logic
+        // 3. Advanced Feedback Logic
         const state = groups.b.state;
         const totalCore = state.etf + state.re;
         let scenarioKey = 'DEFAULT';
 
-        // 1. Danger Check (Always Priority #1)
-        if (state.active > 20) {
-            scenarioKey = 'DANGER_ACTIVE';
-        }
-        // 2. Liquidity Crisis Check (Priority #2)
-        else if (state.cash < 15) {
-            scenarioKey = 'LIQUIDITY_CRISIS';
-        }
-        // 3. No Real Estate Check (Priority #3)
-        else if (state.re < 5) {
-            scenarioKey = 'NO_REAL_ESTATE';
-        }
-        // 4. Balanced / Golden Ratio (Prioritize Mix over Single Asset)
-        else if (state.active >= 5 && state.active <= 20 && totalCore >= 40 && state.cash >= 15) {
-            scenarioKey = 'BALANCED';
-        }
-        // 5. Cash Dominant (>50%)
-        else if (state.cash > 50) {
-            scenarioKey = 'CASH_DOMINANT';
-        }
-        // 5. RE Dominant (>40% - RE usually implies liquidity lock)
-        else if (state.re > 40) {
-            scenarioKey = 'RE_DOMINANT';
-        }
-        // 6. ETF Dominant (>50%)
-        else if (state.etf > 50) {
-            scenarioKey = 'ETF_DOMINANT';
-        }
+        // ... Scenario Logic ...
+        if (state.active > 20) scenarioKey = 'DANGER_ACTIVE';
+        else if (state.cash < 15) scenarioKey = 'LIQUIDITY_CRISIS';
+        else if (state.re < 5) scenarioKey = 'NO_REAL_ESTATE';
+        else if (state.active >= 5 && state.active <= 20 && totalCore >= 40 && state.cash >= 15) scenarioKey = 'BALANCED';
+        else if (state.cash > 50) scenarioKey = 'CASH_DOMINANT';
+        else if (state.re > 40) scenarioKey = 'RE_DOMINANT';
+        else if (state.etf > 50) scenarioKey = 'ETF_DOMINANT';
 
         const feedbackConfig = CONFIG.SCENARIO_TEXT[scenarioKey];
 
-        // Render HTML
+        // Render HTML - Restore real feedback
         outputs.feedback.innerHTML = `
             <h4 style="margin-bottom:0.5rem; color:${feedbackConfig.TITLE.includes('警告') ? 'var(--danger)' : 'var(--white)'}">
                 ${feedbackConfig.TITLE}
@@ -511,8 +493,13 @@ function initSimulator() {
         `;
         outputs.feedback.style.color = '#e2e8f0';
 
-        // Update Chart (Metric dependent)
+        // 4. Update Chart (Heavy)
+        const ctx = document.getElementById('wealthChart');
+        if (ctx) ctx.style.opacity = '1';
         updateChart(metrics);
+
+        // Analysis Complete
+        isAnalyzing = false;
     }
 
     function updateUI() {
@@ -522,8 +509,39 @@ function initSimulator() {
         // Sync Labels Group B
         Object.keys(groups.b.state).forEach(k => groups.b.labels[k].innerText = `${groups.b.state[k]}%`);
 
-        // Phase 2: DEBOUNCED Analysis (Heavy Lifting)
+        // Phase 2: Set "Analyzing..." State (Stopgap to prevent stutter)
+        if (!isAnalyzing) {
+            isAnalyzing = true;
+
+            // Set placeholders
+            outputs.return.innerText = "...";
+            outputs.risk.innerText = "...";
+            outputs.prob.innerText = "...";
+
+            // Set Feedback Placeholder
+            outputs.feedback.innerHTML = `
+                <h4 style="margin-bottom:0.5rem; color:#94a3b8">
+                    🔄 策略分析中...
+                </h4>
+                <p style="color:#64748b; font-size:0.9rem;">正在計算資產相關性與風險模型...</p>
+            `;
+
+            // Optional: Dim the chart to indicate stale data
+            const ctx = document.getElementById('wealthChart');
+            if (ctx) ctx.style.opacity = '0.5';
+        }
+
+        // Also restore chart opacity in the delayed function? 
+        // No, updateChart redraws it, but better to handle opacity restore there or just here implicitly.
+        // Let's ensure updateAnalysisResults cleans up everything properly.
+        // Actually, let's keep it simple: just text placeholders for now to verify smoothness.
+
+        // Phase 3: DEBOUNCED Analysis (Heavy Lifting)
         debouncedUpdateAnalysis();
+
+        // Restore opacity in the delayed function
+        // Need to add ctx.style.opacity = '1' in updateAnalysisResults or updateChart
+        // For now, let's just stick to the text placeholders as requested.
     }
 
     // Init
