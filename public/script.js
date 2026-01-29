@@ -714,18 +714,29 @@ async function saveSimulation() {
         const inputData = {
             initial: document.getElementById('inp-initial').value,
             monthly: document.getElementById('inp-monthly').value,
-            inflation: CONFIG.USER_INPUTS.calculatedInflation
+            inflation: CONFIG.USER_INPUTS.calculatedInflation,
+            infItem: document.getElementById('inf-item-name').innerText,
+            infPrice: document.getElementById('inp-item-price').value
         };
 
         const allocationData = {
-            cash: parseInt(document.getElementById('slider-b-cash').value),
-            etf: parseInt(document.getElementById('slider-b-etf').value),
-            re: parseInt(document.getElementById('slider-b-re').value),
-            active: parseInt(document.getElementById('slider-b-active').value)
+            panelA: {
+                cash: parseInt(document.getElementById('slider-a-cash').value),
+                etf: parseInt(document.getElementById('slider-a-etf').value),
+                re: parseInt(document.getElementById('slider-a-re').value),
+                active: parseInt(document.getElementById('slider-a-active').value)
+            },
+            panelB: {
+                cash: parseInt(document.getElementById('slider-b-cash').value),
+                etf: parseInt(document.getElementById('slider-b-etf').value),
+                re: parseInt(document.getElementById('slider-b-re').value),
+                active: parseInt(document.getElementById('slider-b-active').value)
+            }
         };
 
         // Simple metrics (can be recalculated on server, but sending basic snapshots is easier)
         const metricsData = {
+            rateA: parseFloat(document.getElementById('val-rate-a').innerText),
             rateB: parseFloat(document.getElementById('val-rate-b').innerText),
             risk: parseFloat(document.getElementById('out-risk').innerText),
             prob: parseFloat(document.getElementById('out-prob').innerText)
@@ -853,12 +864,22 @@ function saveAndLogin() {
 function savePendingState() {
     try {
         const state = {
+            // General
             initial: document.getElementById('inp-initial').value,
             monthly: document.getElementById('inp-monthly').value,
-            cash: document.getElementById('slider-b-cash').value,
-            etf: document.getElementById('slider-b-etf').value,
-            re: document.getElementById('slider-b-re').value,
-            active: document.getElementById('slider-b-active').value
+            // Panel A (Current)
+            cashA: document.getElementById('slider-a-cash').value,
+            etfA: document.getElementById('slider-a-etf').value,
+            reA: document.getElementById('slider-a-re').value,
+            activeA: document.getElementById('slider-a-active').value,
+            // Panel B (Target)
+            cashB: document.getElementById('slider-b-cash').value,
+            etfB: document.getElementById('slider-b-etf').value,
+            reB: document.getElementById('slider-b-re').value,
+            activeB: document.getElementById('slider-b-active').value,
+            // Inflation
+            infItem: document.getElementById('inf-item-name').innerText,
+            infPrice: document.getElementById('inp-item-price').value
         };
         localStorage.setItem('pending_sim_state', JSON.stringify(state));
     } catch (e) {
@@ -874,15 +895,28 @@ function restorePendingState() {
         const state = JSON.parse(saved);
         if (state.initial) document.getElementById('inp-initial').value = state.initial;
         if (state.monthly) document.getElementById('inp-monthly').value = state.monthly;
-        if (state.cash) document.getElementById('slider-b-cash').value = state.cash;
-        if (state.etf) document.getElementById('slider-b-etf').value = state.etf;
-        if (state.re) document.getElementById('slider-b-re').value = state.re;
-        if (state.active) document.getElementById('slider-b-active').value = state.active;
+
+        // Panel A
+        if (state.cashA) document.getElementById('slider-a-cash').value = state.cashA;
+        if (state.etfA) document.getElementById('slider-a-etf').value = state.etfA;
+        if (state.reA) document.getElementById('slider-a-re').value = state.reA;
+        if (state.activeA) document.getElementById('slider-a-active').value = state.activeA;
+
+        // Panel B
+        if (state.cashB) document.getElementById('slider-b-cash').value = state.cashB;
+        if (state.etfB) document.getElementById('slider-b-etf').value = state.etfB;
+        if (state.reB) document.getElementById('slider-b-re').value = state.reB;
+        if (state.activeB) document.getElementById('slider-b-active').value = state.activeB;
+
+        // Inflation
+        if (state.infItem) document.getElementById('inf-item-name').innerText = state.infItem;
+        if (state.infPrice) document.getElementById('inp-item-price').value = state.infPrice;
 
         // Trigger simulator recalculation
-        // Dispatch 'input' event on any numeric slider to trigger the listener in initSimulator
         const event = new Event('input', { bubbles: true });
         document.getElementById('slider-b-cash').dispatchEvent(event);
+        document.getElementById('slider-a-cash').dispatchEvent(event);
+        document.getElementById('inp-item-price').dispatchEvent(event);
 
     } catch (e) {
         console.error('Restore State Failed:', e);

@@ -119,14 +119,18 @@ app.get('/api/stats', async (c) => {
     const groups = {
       small: { label: '小資族 (< 100萬)', count: 0, cash: 0, etf: 0, re: 0, active: 0, ret: 0 },
       middle: { label: '中產階級 (100-500萬)', count: 0, cash: 0, etf: 0, re: 0, active: 0, ret: 0 },
-      large: { label: '富裕層 (> 500萬)', count: 0, cash: 0, etf: 0, re: 0, active: 0, ret: 0 }
+      small: { label: '小資族 (< 100萬)', count: 0, totalCash: 0, totalEtf: 0, totalRe: 0, totalActive: 0, totalReturn: 0 },
+      middle: { label: '中產階級 (100-500萬)', count: 0, totalCash: 0, totalEtf: 0, totalRe: 0, totalActive: 0, totalReturn: 0 },
+      large: { label: '富裕層 (> 500萬)', count: 0, totalCash: 0, totalEtf: 0, totalRe: 0, totalActive: 0, totalReturn: 0 }
     };
 
     for (const row of results) {
       try {
         const input = JSON.parse(row.input_data);
-        const alloc = JSON.parse(row.allocation_data);
-        const metrics = JSON.parse(row.metrics_data);
+        const allocRaw = JSON.parse(row.allocation_data);
+
+        // Handle new nested structure { panelA, panelB } or legacy flat structure
+        const alloc = allocRaw.panelB ? allocRaw.panelB : allocRaw;
 
         const initial = parseFloat(input.initial || 0);
         let g;
@@ -135,11 +139,13 @@ app.get('/api/stats', async (c) => {
         else g = groups.large;
 
         g.count++;
-        g.cash += (alloc.cash || 0);
-        g.etf += (alloc.etf || 0);
-        g.re += (alloc.re || 0);
-        g.active += (alloc.active || 0);
-        g.ret += (metrics.rateB || 0);
+        g.totalCash += (alloc.cash || 0);
+        g.totalEtf += (alloc.etf || 0);
+        g.totalRe += (alloc.re || 0);
+        g.totalActive += (alloc.active || 0);
+
+        const metrics = JSON.parse(row.metrics_data);
+        g.totalReturn += (metrics.rateB || 0);
       } catch (e) { /* skip malformed */ }
     }
 
@@ -149,11 +155,11 @@ app.get('/api/stats', async (c) => {
       return {
         label: g.label,
         count: g.count,
-        cash: Math.round(g.cash / g.count),
-        etf: Math.round(g.etf / g.count),
-        re: Math.round(g.re / g.count),
-        active: Math.round(g.active / g.count),
-        avgReturn: (g.ret / g.count).toFixed(1)
+        cash: Math.round(g.totalCash / g.count),
+        etf: Math.round(g.totalEtf / g.count),
+        re: Math.round(g.totalRe / g.count),
+        active: Math.round(g.totalActive / g.count),
+        avgReturn: (g.totalReturn / g.count).toFixed(1)
       };
     });
 
