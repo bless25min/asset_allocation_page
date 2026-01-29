@@ -276,11 +276,11 @@ function initSimulator() {
         );
 
         // Best case logic for Bar
-        let activeBest = (stateB.active > 20) ? CONFIG.RATES.ACTIVE_RETURN_PENALTY : CONFIG.RATES.ACTIVE_RETURN_BEST;
+        let activeBest = CONFIG.RATES.ACTIVE_RETURN_BEST; // Always show potential upside
         const bestB = (
-            (stateB.cash * CONFIG.RATES.CASH_RETURN) +
-            (stateB.etf * CONFIG.RATES.ETF_RETURN) +
-            (stateB.re * CONFIG.RATES.REAL_ESTATE_RETURN) +
+            (stateB.cash * CONFIG.RATES.CASH_RETURN_BEST) +
+            (stateB.etf * CONFIG.RATES.ETF_RETURN_BEST) +
+            (stateB.re * CONFIG.RATES.REAL_ESTATE_RETURN_BEST) +
             (stateB.active * activeBest)
         ) / 100;
 
@@ -388,16 +388,42 @@ function initSimulator() {
             });
         }
 
-        // V3.2 Update Wealth Gap Card
+        // V3.2 Update Wealth Gap Card (Range Edition)
         const lastA = dataA[dataA.length - 1];
-        const lastB = dataB[dataB.length - 1];
-        const gap = lastB - lastA;
+
+        // Calculate Best/Worst B Final Wealth
+        // Cap "Long-term Best" at 30% to avoid astronomical numbers (120% is for short-term volatility)
+        const longTermBestRate = Math.min(metrics.bestB, 30.0);
+
+        const lastB_Best = calculateFV(initial, monthly, longTermBestRate, 20); // 20 years capped
+        const lastB_Worst = calculateFV(initial, monthly, metrics.maxRiskB, 20);
+
+        const gapMin = lastB_Worst - lastA;
+        const gapMax = lastB_Best - lastA;
         const gapEl = document.getElementById('val-wealth-gap');
 
         if (gapEl) {
-            const gapWan = Math.round(gap / 10000).toLocaleString();
-            gapEl.innerText = (gap > 0 ? '+' : '') + gapWan + ' 萬';
-            gapEl.style.color = gap >= 0 ? 'var(--accent)' : 'var(--danger)';
+            // Helper specific for this manual HTML construction to control colors
+            const fmt = (val) => {
+                const wan = Math.round(val / 10000);
+                const absWan = Math.abs(wan);
+                let numStr = "";
+                if (absWan >= 10000) {
+                    numStr = (wan / 10000).toFixed(1) + '億';
+                } else {
+                    numStr = wan.toLocaleString() + '萬';
+                }
+                // Add explicit sign if positive
+                if (val > 0) numStr = "+" + numStr;
+                return numStr;
+            };
+
+            const minHtml = fmt(gapMin);
+            const maxHtml = fmt(gapMax);
+
+            gapEl.innerHTML = `<span style="color:var(--danger)">${minHtml}</span> <span style="font-size:0.75em;color:#64748b"> 至 </span> <span style="color:var(--accent)">${maxHtml}</span>`;
+            // Override default color logic as we use inline HTML now
+            gapEl.style.color = '';
         }
     }
 
@@ -432,7 +458,14 @@ function initSimulator() {
         // Dashboard uses Plan B Stats
         outputs.return.innerText = (metrics.rateB > 0 ? '+' : '') + `${metrics.rateB.toFixed(1)}%`;
         outputs.return.style.color = (metrics.rateB < 0) ? 'var(--danger)' : 'var(--white)';
-        outputs.risk.innerText = `${metrics.maxRiskB.toFixed(1)}%`;
+
+        // Volatility Range Logic (Min ~ Max)
+        const minRisk = metrics.maxRiskB.toFixed(1);
+        const maxReward = metrics.bestB.toFixed(1);
+        const maxSign = metrics.bestB > 0 ? '+' : '';
+        outputs.risk.innerHTML = `<span style="color:#ef4444">${minRisk}%</span> ~ <span style="color:#10b981">${maxSign}${maxReward}%</span>`;
+        // Removed static single value
+
         outputs.prob.innerText = `${Math.round(metrics.probB)}%`;
 
         // Advanced Feedback Logic
@@ -883,7 +916,7 @@ async function loadStats() {
                         登入後即可解鎖社群大數據，查看不同本金規模的配置參考。
                     </p>
                 </div>
-                <button onclick="loginToSeeStats()" class="btn btn-primary" style="background-color: #06C755; border:none; padding: 0.8rem 2rem; font-size: 1rem; border-radius:30px;">
+                <button onclick="loginToSeeStats()" class="btn-line-cta">
                     使用 LINE 帳號登入
                 </button>
             </div>
@@ -907,7 +940,7 @@ async function loadStats() {
                         由於統計結果為進階功能，請在授權頁面中勾選「加入好友」。<br>
                         若您剛才遺漏了，請點擊下方按鈕重新授權。
                     </p>
-                    <button onclick="loginToSeeStats()" class="btn btn-primary" style="display:inline-block;">
+                    <button onclick="loginToSeeStats()" class="btn-line-cta">
                         ✅ 重新登入並加入好友
                     </button>
                 </div>

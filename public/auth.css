@@ -174,6 +174,42 @@
     }
 }
 
+/* Enhanced LINE Login CTA (Green Version of View Stats) */
+.btn-line-cta {
+    background: linear-gradient(135deg, #06C755 0%, #22c55e 100%);
+    /* LINE Green */
+    color: white;
+    border: none;
+    font-weight: bold;
+    font-size: 1rem;
+    padding: 0.8rem 2rem;
+    border-radius: 30px;
+    box-shadow: 0 4px 15px rgba(6, 199, 85, 0.4);
+    animation: pulse-green 2s infinite;
+    cursor: pointer;
+    transition: transform 0.2s, box-shadow 0.2s;
+    display: inline-block;
+}
+
+.btn-line-cta:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(6, 199, 85, 0.6);
+}
+
+@keyframes pulse-green {
+    0% {
+        box-shadow: 0 0 0 0 rgba(6, 199, 85, 0.4);
+    }
+
+    70% {
+        box-shadow: 0 0 0 10px rgba(6, 199, 85, 0);
+    }
+
+    100% {
+        box-shadow: 0 0 0 0 rgba(6, 199, 85, 0);
+    }
+}
+
 /* Action Buttons */
 .action-buttons {
     display: flex;
@@ -217,7 +253,49 @@
     }
 }
 
-/* --- Global Modal & Responsive Enhancements (V3.5) --- */
+/* Enhanced Education CTA (Blue Version of View Stats) */
+.btn-blue-cta {
+    width: 100%;
+    padding: 1rem;
+    border-radius: 12px;
+    background: linear-gradient(135.47deg, #007AFF 0%, #00C7BE 100%);
+    /* Blue to Teal */
+    border: none;
+    text-decoration: none;
+    color: white;
+    font-weight: 600;
+    font-size: 1.05rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    box-shadow: 0 4px 15px rgba(0, 122, 255, 0.3);
+    animation: pulse-blue 2s infinite;
+    transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.btn-blue-cta:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(0, 122, 255, 0.5);
+    color: white;
+    /* Ensure visible on hover */
+}
+
+@keyframes pulse-blue {
+    0% {
+        box-shadow: 0 0 0 0 rgba(0, 122, 255, 0.4);
+    }
+
+    70% {
+        box-shadow: 0 0 0 10px rgba(0, 122, 255, 0);
+    }
+
+    100% {
+        box-shadow: 0 0 0 0 rgba(0, 122, 255, 0);
+    }
+}
+
+/* Global Modal & Responsive Enhancements (V3.5) */
 .modal-overlay {
     position: fixed;
     top: 0;

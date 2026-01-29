@@ -8,8 +8,11 @@ const CONFIG = {
     // 1. Definition of Rates
     RATES: {
         CASH_RETURN: 1.5,
+        CASH_RETURN_BEST: 2.0, // Rate Hike Cycle
         ETF_RETURN: 8.0,
+        ETF_RETURN_BEST: 30.0, // Bull Market
         REAL_ESTATE_RETURN: 5.5,
+        REAL_ESTATE_RETURN_BEST: 20.0, // Property Boom
         ACTIVE_RETURN_AVG: 15.0,
         ACTIVE_RETURN_BEST: 120.0,
         ACTIVE_RETURN_PENALTY: -50.0,
