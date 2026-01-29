@@ -861,6 +861,8 @@ async function loadStats() {
     if (!liff.isLoggedIn()) {
         const filters = document.getElementById('stats-filters');
         const grid = document.querySelector('.stats-content-grid');
+        const cta = document.getElementById('stats-cta-link'); // Added
+        if (cta) cta.classList.add('hidden'); // Added
         if (filters) filters.style.display = 'none';
         if (grid) grid.innerHTML = `
             <div style="grid-column: 1/-1; padding: 2rem 1rem; text-align:center;">
@@ -885,6 +887,8 @@ async function loadStats() {
         const friendship = await liff.getFriendship();
         if (!friendship.friendFlag) {
             const filters = document.getElementById('stats-filters');
+            const cta = document.getElementById('stats-cta-link'); // Added
+            if (cta) cta.classList.add('hidden'); // Added
             if (filters) filters.style.display = 'none';
             const grid = document.querySelector('.stats-content-grid');
             if (grid) grid.innerHTML = `
@@ -909,6 +913,8 @@ async function loadStats() {
 
         // Show filters and render default (small)
         document.getElementById('stats-filters').style.display = 'flex';
+        const cta = document.getElementById('stats-cta-link'); // Added
+        if (cta) cta.classList.remove('hidden'); // Show now
         switchStatsGroup('small');
 
     } catch (e) {
