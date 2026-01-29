@@ -710,8 +710,10 @@ function logout() {
 }
 
 async function saveSimulation() {
-    const userId = localStorage.getItem('line_user_id');
-    if (!userId) return alert('請先登入！');
+    if (!liff.isLoggedIn()) {
+        liff.login();
+        return;
+    }
 
     const btn = document.getElementById('btn-save-sim');
     const originalText = btn.innerText;
@@ -719,19 +721,39 @@ async function saveSimulation() {
     btn.disabled = true;
 
     try {
-        // Gather Data
-        // We need to access the 'groups' and 'finInputs' from the main scope or read DOM
-        // Since variables are scoped inside initSimulator, we must read DOM again.
+        const userId = liff.getDecodedIDToken().sub;
+        const payload = gatherSimulationData();
 
-        const inputData = {
+        const res = await fetch('/api/simulation', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-User-ID': userId
+            },
+            body: JSON.stringify(payload)
+        });
+
+        const json = await res.json();
+        if (json.success) {
+            alert('✅ 配置已儲存至您的帳號！');
+        } else {
+            alert('❌ 儲存失敗: ' + (json.error || 'Unknown'));
+        }
+    } catch (e) {
+        alert('連線錯誤：' + e.message);
+    } finally {
+        btn.innerText = originalText;
+        btn.disabled = false;
+    }
+}
+
+function gatherSimulationData() {
+    return {
+        inputData: {
             initial: document.getElementById('inp-initial').value,
-            monthly: document.getElementById('inp-monthly').value,
-            inflation: CONFIG.USER_INPUTS.calculatedInflation,
-            infItem: document.getElementById('inf-item-name').innerText,
-            infPrice: document.getElementById('inp-item-price').value
-        };
-
-        const allocationData = {
+            monthly: document.getElementById('inp-monthly').value
+        },
+        allocationData: {
             panelA: {
                 cash: parseInt(document.getElementById('slider-a-cash').value),
                 etf: parseInt(document.getElementById('slider-a-etf').value),
@@ -744,40 +766,16 @@ async function saveSimulation() {
                 re: parseInt(document.getElementById('slider-b-re').value),
                 active: parseInt(document.getElementById('slider-b-active').value)
             }
-        };
-
-        // Simple metrics (can be recalculated on server, but sending basic snapshots is easier)
-        const metricsData = {
+        },
+        metricsData: {
             rateA: parseFloat(document.getElementById('val-rate-a').innerText),
             rateB: parseFloat(document.getElementById('val-rate-b').innerText),
             risk: parseFloat(document.getElementById('out-risk').innerText),
-            prob: parseFloat(document.getElementById('out-prob').innerText)
-            // wealth gap etc.
-        };
-
-        const res = await fetch('/api/simulation', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-User-ID': userId
-            },
-            body: JSON.stringify({ inputData, allocationData, metricsData })
-        });
-
-        const json = await res.json();
-
-        if (json.success) {
-            alert('✅ 配置已儲存！');
-        } else {
-            alert('❌ 儲存失敗: ' + (json.error || 'Unknown'));
+            prob: parseFloat(document.getElementById('out-prob').innerText),
+            infItem: document.getElementById('inf-item-name').innerText,
+            infPrice: document.getElementById('inp-item-price').value
         }
-
-    } catch (e) {
-        alert('連線錯誤：' + e.message);
-    } finally {
-        btn.innerText = originalText;
-        btn.disabled = false;
-    }
+    };
 }
 
 let allStatsData = null; // Cache for switching groups
@@ -786,19 +784,34 @@ async function loadStats() {
     const modal = document.getElementById('stats-modal');
     modal.classList.remove('hidden');
 
+    // 0. Pre-login Anonymous Storage (Zero Data Loss Strategy)
+    try {
+        const payload = gatherSimulationData();
+        await fetch('/api/simulation', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+    } catch (e) {
+        console.warn('Anonymous Save Failed (Ignoring):', e);
+    }
+
     // 1. Force Login Check (UI Version)
     if (!liff.isLoggedIn()) {
         const filters = document.getElementById('stats-filters');
         const grid = document.querySelector('.stats-content-grid');
         if (filters) filters.style.display = 'none';
         if (grid) grid.innerHTML = `
-            <div style="grid-column: 1/-1; padding: 3rem 1rem; text-align:center;">
+            <div style="grid-column: 1/-1; padding: 2rem 1rem; text-align:center;">
                 <div style="margin-bottom: 1.5rem;">
-                    <img src="https://upload.wikimedia.org/wikipedia/commons/4/41/LINE_logo.svg" alt="LINE" width="50" style="margin-bottom:1rem;">
+                    <img src="https://upload.wikimedia.org/wikipedia/commons/4/41/LINE_logo.svg" alt="LINE" width="40" style="margin-bottom:1rem;">
                     <h4 style="color: #fff; margin-bottom: 0.5rem;">想看大家怎麼配嗎？</h4>
-                    <p style="font-size: 0.9rem; color: #94a3b8;">登入後即可解鎖社群大數據，查看不同本金規模的配置參考。</p>
+                    <p style="font-size: 0.85rem; color: #94a3b8; line-height:1.4;">
+                        📊 數據已為您先行儲存！<br>
+                        登入後即可解鎖社群大數據，查看不同本金規模的配置參考。
+                    </p>
                 </div>
-                <button onclick="saveAndLogin()" class="btn btn-primary" style="background-color: #06C755; border:none; padding: 0.8rem 2rem; font-size: 1rem;">
+                <button onclick="liff.login()" class="btn btn-primary" style="background-color: #06C755; border:none; padding: 0.8rem 2rem; font-size: 1rem; border-radius:30px;">
                     使用 LINE 帳號登入
                 </button>
             </div>
@@ -818,7 +831,7 @@ async function loadStats() {
                         由於統計結果為進階功能，請在授權頁面中勾選「加入好友」。<br>
                         若您剛才遺漏了，請點擊下方按鈕重新授權。
                     </p>
-                    <button onclick="saveAndLogin()" class="btn btn-primary" style="display:inline-block;">
+                    <button onclick="liff.login()" class="btn btn-primary" style="display:inline-block;">
                         ✅ 重新登入並加入好友
                     </button>
                 </div>

@@ -79,15 +79,12 @@ app.get('/api/user/me', authCheck, async (c) => {
   return c.json(user);
 });
 
-// 4. Save Simulation
-app.post('/api/simulation', authCheck, async (c) => {
-  const userId = c.var.userId;
+// 4. Save Simulation (Auth Optional for Statistics)
+app.post('/api/simulation', async (c) => {
+  const userId = c.req.header('X-User-ID'); // May be null
   const body = await c.req.json();
-  // body: { inputData, allocationData, metricsData }
 
   const now = Date.now();
-
-  // Convert objects to JSON strings
   const inputStr = JSON.stringify(body.inputData || {});
   const allocStr = JSON.stringify(body.allocationData || {});
   const metricsStr = JSON.stringify(body.metricsData || {});
@@ -95,7 +92,7 @@ app.post('/api/simulation', authCheck, async (c) => {
   const res = await c.env.DB.prepare(`
         INSERT INTO simulations (user_id, input_data, allocation_data, metrics_data, created_at)
         VALUES (?, ?, ?, ?, ?)
-    `).bind(userId, inputStr, allocStr, metricsStr, now).run();
+    `).bind(userId || null, inputStr, allocStr, metricsStr, now).run();
 
   if (res.success) {
     return c.json({ success: true, id: res.meta.last_row_id });
