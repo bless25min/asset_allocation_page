@@ -408,8 +408,12 @@ function initSimulator() {
 
         const metrics = calculateMetrics();
 
-        finInputs.rateA.innerText = `${metrics.rateA.toFixed(1)}%`;
-        finInputs.rateB.innerText = `${metrics.rateB.toFixed(1)}%`;
+        if (finInputs.rateA) finInputs.rateA.innerText = `${metrics.rateA.toFixed(1)}%`;
+        if (finInputs.rateB) finInputs.rateB.innerText = `${metrics.rateB.toFixed(1)}%`;
+
+        // Store for persistence logic (avoid DOM dependency)
+        CONFIG.USER_INPUTS.lastRateA = metrics.rateA;
+        CONFIG.USER_INPUTS.lastRateB = metrics.rateB;
 
         // Dashboard uses Plan B Stats
         outputs.return.innerText = (metrics.rateB > 0 ? '+' : '') + `${metrics.rateB.toFixed(1)}%`;
@@ -784,8 +788,8 @@ function gatherSimulationData() {
             }
         },
         metricsData: {
-            rateA: parseFloat(document.getElementById('val-rate-a').innerText),
-            rateB: parseFloat(document.getElementById('val-rate-b').innerText),
+            rateA: parseFloat(CONFIG.USER_INPUTS.lastRateA || 0),
+            rateB: parseFloat(CONFIG.USER_INPUTS.lastRateB || 0),
             risk: parseFloat(document.getElementById('out-risk').innerText),
             prob: parseFloat(document.getElementById('out-prob').innerText),
             infItem: (document.getElementById('calc-item').value).trim() || "",
