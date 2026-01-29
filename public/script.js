@@ -613,6 +613,12 @@ async function initAuth() {
         // Restore any pending state from pre-login
         restorePendingState();
 
+        // [UX Optimization] Check if user was waiting to see stats
+        if (localStorage.getItem('pending_stats_open')) {
+            localStorage.removeItem('pending_stats_open');
+            setTimeout(loadStats, 500); // Small delay to ensure UI is ready
+        }
+
         // Bind Actions
         document.getElementById('btn-login').addEventListener('click', () => {
             if (!liff.isLoggedIn()) {
@@ -823,7 +829,7 @@ async function loadStats() {
                         登入後即可解鎖社群大數據，查看不同本金規模的配置參考。
                     </p>
                 </div>
-                <button onclick="liff.login()" class="btn btn-primary" style="background-color: #06C755; border:none; padding: 0.8rem 2rem; font-size: 1rem; border-radius:30px;">
+                <button onclick="loginToSeeStats()" class="btn btn-primary" style="background-color: #06C755; border:none; padding: 0.8rem 2rem; font-size: 1rem; border-radius:30px;">
                     使用 LINE 帳號登入
                 </button>
             </div>
@@ -843,7 +849,7 @@ async function loadStats() {
                         由於統計結果為進階功能，請在授權頁面中勾選「加入好友」。<br>
                         若您剛才遺漏了，請點擊下方按鈕重新授權。
                     </p>
-                    <button onclick="liff.login()" class="btn btn-primary" style="display:inline-block;">
+                    <button onclick="loginToSeeStats()" class="btn btn-primary" style="display:inline-block;">
                         ✅ 重新登入並加入好友
                     </button>
                 </div>
@@ -928,6 +934,12 @@ function switchStatsGroup(groupKey) {
                                 Based on ${g.inf.count} community reports
                             </div>`;
     }
+}
+
+function loginToSeeStats() {
+    localStorage.setItem('pending_stats_open', 'true');
+    savePendingState(); // Collect current inputs just in case
+    liff.login();
 }
 
 // --- Persistence Helpers ---
