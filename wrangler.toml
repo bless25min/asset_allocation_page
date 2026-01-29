@@ -5,3 +5,8 @@ compatibility_date = "2024-09-23"
 [assets]
 directory = "./public"
 binding = "ASSETS"
+
+[[d1_databases]]
+binding = "DB" # Available in your Worker on env.DB
+database_name = "asset-db"
+database_id = "YOUR_DATABASE_ID_HERE" # User will need to run `wrangler d1 create asset-db` to get this

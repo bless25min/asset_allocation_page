@@ -1,26 +1,175 @@
-export default {
-  async fetch(request, env, ctx) {
-    try {
-      // Attempt to serve the static asset
-      const response = await env.ASSETS.fetch(request);
+import { Hono } from 'hono';
 
-      // If the asset is found (status 200-299) or not modified (304), return it
-      if ((response.status >= 200 && response.status < 300) || response.status === 304) {
-        return response;
-      }
+const app = new Hono();
 
-      // Look for an index.html if the path is a directory (optional, helpful for some setups)
-      // Standard behavior of env.ASSETS might handle this, but explicit handling is safe.
-      // For this simple static site, ASSETS.fetch is usually sufficient as it resembles Pages behavior.
+// --- Auth Utilities (LIFF) ---
+async function verifyLineToken(idToken, channelId) {
+  const params = new URLSearchParams();
+  params.append('id_token', idToken);
+  params.append('client_id', channelId);
 
-      // Custom 404 handling or fallback to index.html for SPA (Single Page App)
-      // Since this is likely a static site, we can just return the response even if 404,
-      // or customize it.
+  const res = await fetch('https://api.line.me/oauth2/v2.1/verify', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: params,
+  });
 
-      return response;
+  if (!res.ok) {
+    const text = await res.text();
+    // Be lenient with error handling for now or throw
+    throw new Error('LINE Verify Failed: ' + text);
+  }
+  return await res.json();
+}
 
-    } catch (e) {
-      return new Response("Internal Error", { status: 500 });
-    }
-  },
+// --- Middleware ---
+const authCheck = async (c, next) => {
+  const userId = c.req.header('X-User-ID');
+  if (!userId) {
+    return c.json({ error: 'Unauthorized' }, 401);
+  }
+  c.set('userId', userId);
+  await next();
 };
+
+
+// --- Routes ---
+
+// 1. LIFF Verify & Login (Replaces old callback)
+app.post('/api/auth/verify', async (c) => {
+  try {
+    const { idToken } = await c.req.json();
+    const { LINE_CHANNEL_ID } = c.env;
+
+    if (!idToken) return c.json({ error: 'No token provided' }, 400);
+
+    // A. Verify ID Token with LINE
+    const payload = await verifyLineToken(idToken, LINE_CHANNEL_ID);
+
+    // B. Upsert User to D1
+    const now = Date.now();
+    await c.env.DB.prepare(`
+      INSERT INTO users (id, display_name, picture_url, created_at, last_login)
+      VALUES (?, ?, ?, ?, ?)
+      ON CONFLICT(id) DO UPDATE SET
+        display_name = excluded.display_name,
+        picture_url = excluded.picture_url,
+        last_login = excluded.last_login
+    `).bind(payload.sub, payload.name, payload.picture, now, now).run();
+
+    // C. Return Session Info
+    return c.json({
+      success: true,
+      user: {
+        id: payload.sub,
+        name: payload.name,
+        picture: payload.picture
+      }
+    });
+
+  } catch (e) {
+    return c.json({ error: e.message }, 500);
+  }
+});
+
+// 3. Get Me (Requires Header)
+app.get('/api/user/me', authCheck, async (c) => {
+  const userId = c.var.userId;
+  const user = await c.env.DB.prepare('SELECT * FROM users WHERE id = ?').bind(userId).first();
+  return c.json(user);
+});
+
+// 4. Save Simulation
+app.post('/api/simulation', authCheck, async (c) => {
+  const userId = c.var.userId;
+  const body = await c.req.json();
+  // body: { inputData, allocationData, metricsData }
+
+  const now = Date.now();
+
+  // Convert objects to JSON strings
+  const inputStr = JSON.stringify(body.inputData || {});
+  const allocStr = JSON.stringify(body.allocationData || {});
+  const metricsStr = JSON.stringify(body.metricsData || {});
+
+  const res = await c.env.DB.prepare(`
+        INSERT INTO simulations (user_id, input_data, allocation_data, metrics_data, created_at)
+        VALUES (?, ?, ?, ?, ?)
+    `).bind(userId, inputStr, allocStr, metricsStr, now).run();
+
+  if (res.success) {
+    return c.json({ success: true, id: res.meta.last_row_id });
+  } else {
+    return c.json({ success: false, error: 'DB Error' }, 500);
+  }
+});
+
+// 5. Public Statistics
+app.get('/api/stats', async (c) => {
+  try {
+    const { results } = await c.env.DB.prepare(`
+            SELECT input_data, allocation_data, metrics_data FROM simulations 
+            ORDER BY created_at DESC LIMIT 200
+        `).all();
+
+    if (!results || results.length === 0) {
+      return c.json({ count: 0 });
+    }
+
+    const groups = {
+      small: { label: '小資族 (< 100萬)', count: 0, cash: 0, etf: 0, re: 0, active: 0, ret: 0 },
+      middle: { label: '中產階級 (100-500萬)', count: 0, cash: 0, etf: 0, re: 0, active: 0, ret: 0 },
+      large: { label: '富裕層 (> 500萬)', count: 0, cash: 0, etf: 0, re: 0, active: 0, ret: 0 }
+    };
+
+    for (const row of results) {
+      try {
+        const input = JSON.parse(row.input_data);
+        const alloc = JSON.parse(row.allocation_data);
+        const metrics = JSON.parse(row.metrics_data);
+
+        const initial = parseFloat(input.initial || 0);
+        let g;
+        if (initial < 100) g = groups.small;
+        else if (initial <= 500) g = groups.middle;
+        else g = groups.large;
+
+        g.count++;
+        g.cash += (alloc.cash || 0);
+        g.etf += (alloc.etf || 0);
+        g.re += (alloc.re || 0);
+        g.active += (alloc.active || 0);
+        g.ret += (metrics.rateB || 0);
+      } catch (e) { /* skip malformed */ }
+    }
+
+    // Average them
+    const finalGroups = Object.values(groups).map(g => {
+      if (g.count === 0) return { ...g, avgReturn: 0 };
+      return {
+        label: g.label,
+        count: g.count,
+        cash: Math.round(g.cash / g.count),
+        etf: Math.round(g.etf / g.count),
+        re: Math.round(g.re / g.count),
+        active: Math.round(g.active / g.count),
+        avgReturn: (g.ret / g.count).toFixed(1)
+      };
+    });
+
+    return c.json({
+      totalCount: results.length,
+      groups: finalGroups
+    });
+
+  } catch (e) {
+    return c.json({ error: e.message }, 500);
+  }
+});
+
+// --- Default Route for Static Assets ---
+app.get('*', async (c) => {
+  return await c.env.ASSETS.fetch(c.req.raw);
+});
+
+export default app;

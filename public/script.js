@@ -584,3 +584,219 @@ function initEmbedMode() {
         }
     }
 }
+
+// --- Part 4: Auth & Data Logic (LIFF V2) ---
+const LIFF_ID = '1656872168-iM0I3QG0'; // 已更新為真實 LIFF ID
+
+async function initAuth() {
+    try {
+        await liff.init({ liffId: LIFF_ID });
+
+        if (liff.isLoggedIn()) {
+            await handleLoggedInUser();
+        } else {
+            updateAuthState(false);
+        }
+
+        // Bind Actions
+        document.getElementById('btn-login').addEventListener('click', () => {
+            if (!liff.isLoggedIn()) {
+                liff.login();
+            }
+        });
+        document.getElementById('btn-logout').addEventListener('click', logout);
+        document.getElementById('btn-save-sim').addEventListener('click', saveSimulation);
+        document.getElementById('btn-view-stats').addEventListener('click', loadStats);
+        document.getElementById('btn-close-stats').addEventListener('click', () => {
+            document.getElementById('stats-modal').classList.add('hidden');
+        });
+
+    } catch (error) {
+        console.error('LIFF Init Failed:', error);
+        if (error.code === "invalid_argument") {
+            console.warn("尚未設定 LIFF ID，請至 script.js 更新。");
+        }
+    }
+}
+
+async function handleLoggedInUser() {
+    try {
+        const profile = await liff.getProfile();
+        const idToken = liff.getIDToken();
+
+        const res = await fetch('/api/auth/verify', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ idToken })
+        });
+
+        const data = await res.json();
+
+        if (data.success) {
+            localStorage.setItem('line_user_id', profile.userId);
+            localStorage.setItem('line_user_name', profile.displayName);
+            localStorage.setItem('line_user_pic', profile.pictureUrl);
+            updateAuthState(true);
+        } else {
+            console.error('Backend Verify Failed:', data.error);
+            alert('登入驗證失敗，請重試');
+            liff.logout();
+            updateAuthState(false);
+        }
+
+    } catch (e) {
+        console.error('Login Flow Error:', e);
+    }
+}
+
+
+
+function updateAuthState() {
+    const userId = localStorage.getItem('line_user_id');
+    const userName = localStorage.getItem('line_user_name');
+    const userPic = localStorage.getItem('line_user_pic');
+
+    const btnLogin = document.getElementById('btn-login');
+    const userInfo = document.getElementById('user-info');
+    const btnSave = document.getElementById('btn-save-sim');
+
+    if (userId) {
+        // Logged In
+        btnLogin.classList.add('hidden');
+        userInfo.classList.remove('hidden');
+        document.getElementById('user-name').innerText = userName;
+        if (userPic && userPic !== 'undefined') {
+            document.getElementById('user-pic').src = userPic;
+        } else {
+            document.getElementById('user-pic').src = 'https://ui-avatars.com/api/?name=' + userName;
+        }
+
+        btnSave.classList.remove('hidden');
+    } else {
+        // Guest
+        btnLogin.classList.remove('hidden');
+        userInfo.classList.add('hidden');
+        btnSave.classList.add('hidden');
+    }
+}
+
+function logout() {
+    if (confirm('確定要登出嗎？')) {
+        if (liff.isLoggedIn()) {
+            liff.logout();
+        }
+        localStorage.removeItem('line_user_id');
+        localStorage.removeItem('line_user_name');
+        localStorage.removeItem('line_user_pic');
+        updateAuthState(false);
+        window.location.reload();
+    }
+}
+
+async function saveSimulation() {
+    const userId = localStorage.getItem('line_user_id');
+    if (!userId) return alert('請先登入！');
+
+    const btn = document.getElementById('btn-save-sim');
+    const originalText = btn.innerText;
+    btn.innerText = '儲存中...';
+    btn.disabled = true;
+
+    try {
+        // Gather Data
+        // We need to access the 'groups' and 'finInputs' from the main scope or read DOM
+        // Since variables are scoped inside initSimulator, we must read DOM again.
+
+        const inputData = {
+            initial: document.getElementById('inp-initial').value,
+            monthly: document.getElementById('inp-monthly').value,
+            inflation: CONFIG.USER_INPUTS.calculatedInflation
+        };
+
+        const allocationData = {
+            cash: parseInt(document.getElementById('slider-b-cash').value),
+            etf: parseInt(document.getElementById('slider-b-etf').value),
+            re: parseInt(document.getElementById('slider-b-re').value),
+            active: parseInt(document.getElementById('slider-b-active').value)
+        };
+
+        // Simple metrics (can be recalculated on server, but sending basic snapshots is easier)
+        const metricsData = {
+            rateB: parseFloat(document.getElementById('val-rate-b').innerText),
+            risk: parseFloat(document.getElementById('out-risk').innerText),
+            prob: parseFloat(document.getElementById('out-prob').innerText)
+            // wealth gap etc.
+        };
+
+        const res = await fetch('/api/simulation', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-User-ID': userId
+            },
+            body: JSON.stringify({ inputData, allocationData, metricsData })
+        });
+
+        const json = await res.json();
+
+        if (json.success) {
+            alert('✅ 配置已儲存！');
+        } else {
+            alert('❌ 儲存失敗: ' + (json.error || 'Unknown'));
+        }
+
+    } catch (e) {
+        alert('連線錯誤：' + e.message);
+    } finally {
+        btn.innerText = originalText;
+        btn.disabled = false;
+    }
+}
+
+async function loadStats() {
+    const modal = document.getElementById('stats-modal');
+    modal.classList.remove('hidden');
+
+    const countEl = document.getElementById('stats-count');
+    const bodyEl = document.getElementById('stats-body');
+
+    countEl.innerText = '...';
+    bodyEl.innerHTML = '<tr><td colspan="6">載入數據中...</td></tr>';
+
+    try {
+        const res = await fetch('/api/stats');
+        const data = await res.json();
+
+        if (data.totalCount !== undefined) {
+            countEl.innerText = data.totalCount;
+
+            if (data.totalCount > 0 && data.groups) {
+                bodyEl.innerHTML = ''; // Clear
+                data.groups.forEach(g => {
+                    const tr = document.createElement('tr');
+                    tr.innerHTML = `
+                        <td>${g.label}</td>
+                        <td>${g.cash}%</td>
+                        <td>${g.etf}%</td>
+                        <td>${g.re}%</td>
+                        <td>${g.active}%</td>
+                        <td class="accent-val">${g.avgReturn}%</td>
+                     `;
+                    bodyEl.appendChild(tr);
+                });
+            } else {
+                bodyEl.innerHTML = '<tr><td colspan="6">尚無統計數據</td></tr>';
+            }
+        } else {
+            bodyEl.innerHTML = '<tr><td colspan="6">載入失敗</td></tr>';
+        }
+
+    } catch (e) {
+        console.error(e);
+        countEl.innerText = '(Error)';
+        bodyEl.innerHTML = '<tr><td colspan="6">連線錯誤</td></tr>';
+    }
+}
+
+// Init Auth Logic
+document.addEventListener('DOMContentLoaded', initAuth);
