@@ -118,19 +118,19 @@ app.get('/api/stats', async (c) => {
         label: '小資族 (< 100萬)', count: 0,
         a: { cash: 0, etf: 0, re: 0, active: 0, ret: 0, count: 0 },
         b: { cash: 0, etf: 0, re: 0, active: 0, ret: 0, count: 0 },
-        inf: { items: {}, prices: 0, count: 0 }
+        inf: { items: [], count: 0 }
       },
       middle: {
         label: '中產階級 (100-500萬)', count: 0,
         a: { cash: 0, etf: 0, re: 0, active: 0, ret: 0, count: 0 },
         b: { cash: 0, etf: 0, re: 0, active: 0, ret: 0, count: 0 },
-        inf: { items: {}, prices: 0, count: 0 }
+        inf: { items: [], count: 0 }
       },
       large: {
         label: '富裕層 (> 500萬)', count: 0,
         a: { cash: 0, etf: 0, re: 0, active: 0, ret: 0, count: 0 },
         b: { cash: 0, etf: 0, re: 0, active: 0, ret: 0, count: 0 },
-        inf: { items: {}, prices: 0, count: 0 }
+        inf: { items: [], count: 0 }
       }
     };
 
@@ -171,11 +171,15 @@ app.get('/api/stats', async (c) => {
         }
 
         // Inflation (Only if valid)
-        if (metrics.infPrice > 0) {
+        const infNow = metrics.infPriceNow || metrics.infPrice;
+        if (metrics.infItem && infNow > 0) {
           g.inf.count++;
-          const item = metrics.infItem || '其他';
-          g.inf.items[item] = (g.inf.items[item] || 0) + 1;
-          g.inf.prices += parseFloat(metrics.infPrice || 0);
+          g.inf.items.push({
+            name: metrics.infItem,
+            old: metrics.infPriceOld || 0,
+            now: infNow,
+            rate: metrics.infRate || 0
+          });
         }
 
       } catch (e) { /* skip malformed */ }
@@ -186,15 +190,8 @@ app.get('/api/stats', async (c) => {
       const g = groups[key];
       if (g.count === 0) return { key, label: g.label, count: 0 };
 
-      // Find top inflation item
-      let topItem = '無數據';
-      let maxCount = 0;
-      for (const [name, count] of Object.entries(g.inf.items)) {
-        if (count > maxCount) {
-          maxCount = count;
-          topItem = name;
-        }
-      }
+      // Get last 20 inflation items (or random)
+      const feed = g.inf.items.slice(-20).reverse();
 
       return {
         key: key,
@@ -215,8 +212,8 @@ app.get('/api/stats', async (c) => {
           avgRet: g.b.count ? (g.b.ret / g.b.count).toFixed(1) : "0.0"
         },
         inf: {
-          topItem: topItem,
-          avgPrice: g.inf.count ? Math.round(g.inf.prices / g.inf.count) : 0
+          feed: feed,
+          count: g.inf.count
         }
       };
     });

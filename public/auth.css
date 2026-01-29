@@ -279,9 +279,73 @@ td:first-child {
     min-width: 120px;
 }
 
-.accent-val {
-    color: #06C755;
+/* Inflation Feed V2 */
+.inf-feed-container {
+    max-height: 250px;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    padding-right: 0.5rem;
+    margin-top: 0.5rem;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(255, 255, 255, 0.1) transparent;
+}
+
+.inf-item-card {
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 12px;
+    padding: 0.8rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    transition: transform 0.2s;
+}
+
+.inf-item-card:hover {
+    background: rgba(255, 255, 255, 0.06);
+    transform: translateX(4px);
+}
+
+.inf-item-info {
+    text-align: left;
+}
+
+.inf-item-name {
+    display: block;
     font-weight: bold;
+    color: #accfff;
+    font-size: 0.95rem;
+    margin-bottom: 0.2rem;
+}
+
+.inf-item-prices {
+    font-size: 0.8rem;
+    color: #94a3b8;
+}
+
+.inf-item-rate {
+    text-align: right;
+}
+
+.inf-rate-val {
+    display: block;
+    color: #ff6b6b;
+    font-weight: bold;
+    font-size: 1.1rem;
+}
+
+.inf-rate-label {
+    font-size: 0.7rem;
+    color: #64748b;
+}
+
+.inf-empty {
+    padding: 2rem;
+    color: #64748b;
+    font-size: 0.9rem;
+    font-style: italic;
 }
 
 .hidden {

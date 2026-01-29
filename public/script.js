@@ -783,7 +783,9 @@ function gatherSimulationData() {
             risk: parseFloat(document.getElementById('out-risk').innerText),
             prob: parseFloat(document.getElementById('out-prob').innerText),
             infItem: document.getElementById('calc-item').value,
-            infPrice: document.getElementById('calc-price-now').value
+            infPriceOld: document.getElementById('calc-price-old').value,
+            infPriceNow: document.getElementById('calc-price-now').value,
+            infRate: CONFIG.USER_INPUTS.calculatedInflation.toFixed(2)
         }
     };
 }
@@ -905,12 +907,27 @@ function switchStatsGroup(groupKey) {
         <tr class="accent-row"><td>平均期望報酬</td><td>${g.b.avgRet}%</td></tr>
     `;
 
-    // Render Inflation
-    infBox.innerHTML = `
-        <span class="inf-item-tag">${g.inf.topItem}</span>
-        <div class="inf-price-val">社群平均預計價格: <span class="accent-val">${g.inf.avgPrice}</span></div>
-        <div style="font-size: 0.8rem; color: #64748b; margin-top: 0.5rem;">Based on ${g.count} reports</div>
-    `;
+    // Render Inflation Feed
+    if (!g.inf.feed || g.inf.feed.length === 0) {
+        infBox.innerHTML = '<div class="inf-empty">尚無通膨觀測數據</div>';
+    } else {
+        const feedHtml = g.inf.feed.map(item => `
+            <div class="inf-item-card">
+                <div class="inf-item-info">
+                    <span class="inf-item-name">${item.name}</span>
+                    <span class="inf-item-prices">${item.old} → ${item.now}</span>
+                </div>
+                <div class="inf-item-rate">
+                    <span class="inf-rate-val">${item.rate}%</span>
+                    <span class="inf-rate-label">Est. Inflation</span>
+                </div>
+            </div>
+        `).join('');
+        infBox.innerHTML = `<div class="inf-feed-container">${feedHtml}</div>
+                            <div style="font-size: 0.75rem; color: #64748b; margin-top: 0.5rem; text-align:center;">
+                                Based on ${g.inf.count} community reports
+                            </div>`;
+    }
 }
 
 // --- Persistence Helpers ---
