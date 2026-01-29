@@ -117,20 +117,31 @@ app.get('/api/stats', async (c) => {
     }
 
     const groups = {
-      small: { label: '小資族 (< 100萬)', count: 0, cash: 0, etf: 0, re: 0, active: 0, ret: 0 },
-      middle: { label: '中產階級 (100-500萬)', count: 0, cash: 0, etf: 0, re: 0, active: 0, ret: 0 },
-      small: { label: '小資族 (< 100萬)', count: 0, totalCash: 0, totalEtf: 0, totalRe: 0, totalActive: 0, totalReturn: 0 },
-      middle: { label: '中產階級 (100-500萬)', count: 0, totalCash: 0, totalEtf: 0, totalRe: 0, totalActive: 0, totalReturn: 0 },
-      large: { label: '富裕層 (> 500萬)', count: 0, totalCash: 0, totalEtf: 0, totalRe: 0, totalActive: 0, totalReturn: 0 }
+      small: {
+        label: '小資族 (< 100萬)', count: 0,
+        a: { cash: 0, etf: 0, re: 0, active: 0, ret: 0 },
+        b: { cash: 0, etf: 0, re: 0, active: 0, ret: 0 },
+        inf: { items: {}, prices: 0 }
+      },
+      middle: {
+        label: '中產階級 (100-500萬)', count: 0,
+        a: { cash: 0, etf: 0, re: 0, active: 0, ret: 0 },
+        b: { cash: 0, etf: 0, re: 0, active: 0, ret: 0 },
+        inf: { items: {}, prices: 0 }
+      },
+      large: {
+        label: '富裕層 (> 500萬)', count: 0,
+        a: { cash: 0, etf: 0, re: 0, active: 0, ret: 0 },
+        b: { cash: 0, etf: 0, re: 0, active: 0, ret: 0 },
+        inf: { items: {}, prices: 0 }
+      }
     };
 
     for (const row of results) {
       try {
         const input = JSON.parse(row.input_data);
         const allocRaw = JSON.parse(row.allocation_data);
-
-        // Handle new nested structure { panelA, panelB } or legacy flat structure
-        const alloc = allocRaw.panelB ? allocRaw.panelB : allocRaw;
+        const metrics = JSON.parse(row.metrics_data);
 
         const initial = parseFloat(input.initial || 0);
         let g;
@@ -139,27 +150,68 @@ app.get('/api/stats', async (c) => {
         else g = groups.large;
 
         g.count++;
-        g.totalCash += (alloc.cash || 0);
-        g.totalEtf += (alloc.etf || 0);
-        g.totalRe += (alloc.re || 0);
-        g.totalActive += (alloc.active || 0);
 
-        const metrics = JSON.parse(row.metrics_data);
-        g.totalReturn += (metrics.rateB || 0);
+        // Panel A
+        const allocA = allocRaw.panelA || {};
+        g.a.cash += (allocA.cash || 0);
+        g.a.etf += (allocA.etf || 0);
+        g.a.re += (allocA.re || 0);
+        g.a.active += (allocA.active || 0);
+        g.a.ret += (metrics.rateA || 0);
+
+        // Panel B
+        const allocB = allocRaw.panelB || (allocRaw.cash ? allocRaw : {});
+        g.b.cash += (allocB.cash || 0);
+        g.b.etf += (allocB.etf || 0);
+        g.b.re += (allocB.re || 0);
+        g.b.active += (allocB.active || 0);
+        g.b.ret += (metrics.rateB || 0);
+
+        // Inflation
+        const item = input.infItem || '其他';
+        g.inf.items[item] = (g.inf.items[item] || 0) + 1;
+        g.inf.prices += parseFloat(input.infPrice || 0);
+
       } catch (e) { /* skip malformed */ }
     }
 
     // Average them
-    const finalGroups = Object.values(groups).map(g => {
-      if (g.count === 0) return { ...g, avgReturn: 0 };
+    const finalGroups = Object.keys(groups).map(key => {
+      const g = groups[key];
+      if (g.count === 0) return { key, label: g.label, count: 0 };
+
+      // Find top inflation item
+      let topItem = '無數據';
+      let maxCount = 0;
+      for (const [name, count] of Object.entries(g.inf.items)) {
+        if (count > maxCount) {
+          maxCount = count;
+          topItem = name;
+        }
+      }
+
       return {
+        key: key,
         label: g.label,
         count: g.count,
-        cash: Math.round(g.totalCash / g.count),
-        etf: Math.round(g.totalEtf / g.count),
-        re: Math.round(g.totalRe / g.count),
-        active: Math.round(g.totalActive / g.count),
-        avgReturn: (g.totalReturn / g.count).toFixed(1)
+        a: {
+          cash: Math.round(g.a.cash / g.count),
+          etf: Math.round(g.a.etf / g.count),
+          re: Math.round(g.a.re / g.count),
+          active: Math.round(g.a.active / g.count),
+          avgRet: (g.a.ret / g.count).toFixed(1)
+        },
+        b: {
+          cash: Math.round(g.b.cash / g.count),
+          etf: Math.round(g.b.etf / g.count),
+          re: Math.round(g.b.re / g.count),
+          active: Math.round(g.b.active / g.count),
+          avgRet: (g.b.ret / g.count).toFixed(1)
+        },
+        inf: {
+          topItem: topItem,
+          avgPrice: Math.round(g.inf.prices / g.count)
+        }
       };
     });
 

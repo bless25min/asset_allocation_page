@@ -246,23 +246,57 @@
         <div class="modal-content">
             <button id="btn-close-stats" class="close-btn">&times;</button>
             <div class="stats-content">
-                <p class="stats-summary">最近 <span id="stats-count">0</span> 筆模擬的平均配置：</p>
-                <div class="table-container">
-                    <table id="stats-table">
-                        <thead>
-                            <tr>
-                                <th>族群</th>
-                                <th>現金</th>
-                                <th>ETF</th>
-                                <th>房產</th>
-                                <th>主動</th>
-                                <th>報酬</th>
-                            </tr>
-                        </thead>
-                        <tbody id="stats-body">
+                <!-- Stats Groups Filter -->
+                <div id="stats-filters" class="stats-tabs">
+                    <button class="active" onclick="switchStatsGroup('small')">小資族</button>
+                    <button onclick="switchStatsGroup('middle')">中產階級</button>
+                    <button onclick="switchStatsGroup('large')">富裕層</button>
+                </div>
+
+                <div class="stats-content-grid">
+                    <!-- Section 1: Current Allocation -->
+                    <div class="stats-section">
+                        <h5>🏠 現況平均配置 (Panel A)</h5>
+                        <table class="stats-table">
+                            <thead>
+                                <tr>
+                                    <th>資產</th>
+                                    <th>比例</th>
+                                </tr>
+                            </thead>
+                            <tbody id="stats-a-body">
+                                <!-- JS Inject -->
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <!-- Section 2: Target Allocation -->
+                    <div class="stats-section">
+                        <h5>🚀 目標期望配置 (Panel B)</h5>
+                        <table class="stats-table">
+                            <thead>
+                                <tr>
+                                    <th>資產</th>
+                                    <th>比例</th>
+                                </tr>
+                            </thead>
+                            <tbody id="stats-b-body">
+                                <!-- JS Inject -->
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <!-- Section 3: Inflation Observation -->
+                    <div class="stats-section">
+                        <h5>🔥 社群通膨觀察</h5>
+                        <div id="stats-inf-box" class="inf-summary-box">
                             <!-- JS Inject -->
-                        </tbody>
-                    </table>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="modal-footer">
+                    <button id="btn-close-stats" class="btn btn-secondary">關閉</button>
                 </div>
             </div>
         </div>

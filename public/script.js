@@ -768,54 +768,48 @@ async function saveSimulation() {
     }
 }
 
+let allStatsData = null; // Cache for switching groups
+
 async function loadStats() {
     const modal = document.getElementById('stats-modal');
     modal.classList.remove('hidden');
 
-    const countEl = document.getElementById('stats-count');
-    const bodyEl = document.getElementById('stats-body');
-
     // 1. Force Login Check (UI Version)
     if (!liff.isLoggedIn()) {
-        countEl.innerText = '需先登入';
-        bodyEl.innerHTML = `
-            <tr>
-                <td colspan="6" style="padding: 3rem 1rem;">
-                    <div style="margin-bottom: 1.5rem;">
-                        <img src="https://upload.wikimedia.org/wikipedia/commons/4/41/LINE_logo.svg" alt="LINE" width="50" style="margin-bottom:1rem;">
-                        <h4 style="color: #fff; margin-bottom: 0.5rem;">想看大家怎麼配嗎？</h4>
-                        <p style="font-size: 0.9rem; color: #94a3b8;">登入後即可解鎖社群大數據，查看不同本金規模的配置參考。</p>
-                    </div>
-                    <button onclick="saveAndLogin()" class="btn btn-primary" style="background-color: #06C755; border:none; padding: 0.8rem 2rem; font-size: 1rem;">
-                        使用 LINE 帳號登入
-                    </button>
-                </td>
-            </tr>
+        const filters = document.getElementById('stats-filters');
+        const grid = document.querySelector('.stats-content-grid');
+        if (filters) filters.style.display = 'none';
+        if (grid) grid.innerHTML = `
+            <div style="grid-column: 1/-1; padding: 3rem 1rem; text-align:center;">
+                <div style="margin-bottom: 1.5rem;">
+                    <img src="https://upload.wikimedia.org/wikipedia/commons/4/41/LINE_logo.svg" alt="LINE" width="50" style="margin-bottom:1rem;">
+                    <h4 style="color: #fff; margin-bottom: 0.5rem;">想看大家怎麼配嗎？</h4>
+                    <p style="font-size: 0.9rem; color: #94a3b8;">登入後即可解鎖社群大數據，查看不同本金規模的配置參考。</p>
+                </div>
+                <button onclick="saveAndLogin()" class="btn btn-primary" style="background-color: #06C755; border:none; padding: 0.8rem 2rem; font-size: 1rem;">
+                    使用 LINE 帳號登入
+                </button>
+            </div>
         `;
         return;
     }
-
-    countEl.innerText = '...';
-    bodyEl.innerHTML = '<tr><td colspan="6">載入數據中...</td></tr>';
 
     try {
         // 2. Friendship Check
         const friendship = await liff.getFriendship();
         if (!friendship.friendFlag) {
-            countEl.innerText = '需成為好友';
-            bodyEl.innerHTML = `
-                <tr>
-                    <td colspan="6" style="padding: 2.5rem 1rem;">
-                        <p style="margin-bottom: 1rem; font-weight: bold; color: #fff;">🔓 您需要先加入 LINE 官方帳號好友</p>
-                        <p style="font-size: 0.85rem; color: #94a3b8; margin-bottom: 1.5rem;">
-                            由於統計結果為進階功能，請在授權頁面中勾選「加入好友」。<br>
-                            若您剛才遺漏了，請點擊下方按鈕重新授權。
-                        </p>
-                        <button onclick="saveAndLogin()" class="btn btn-primary" style="display:inline-block;">
-                            ✅ 重新登入並加入好友
-                        </button>
-                    </td>
-                </tr>
+            const grid = document.querySelector('.stats-content-grid');
+            if (grid) grid.innerHTML = `
+                <div style="grid-column: 1/-1; padding: 2.5rem 1rem; text-align:center;">
+                    <p style="margin-bottom: 1rem; font-weight: bold; color: #fff;">🔓 您需要先加入 LINE 官方帳號好友</p>
+                    <p style="font-size: 0.85rem; color: #94a3b8; margin-bottom: 1.5rem;">
+                        由於統計結果為進階功能，請在授權頁面中勾選「加入好友」。<br>
+                        若您剛才遺漏了，請點擊下方按鈕重新授權。
+                    </p>
+                    <button onclick="saveAndLogin()" class="btn btn-primary" style="display:inline-block;">
+                        ✅ 重新登入並加入好友
+                    </button>
+                </div>
             `;
             return;
         }
@@ -823,36 +817,65 @@ async function loadStats() {
         // 3. Fetch Data
         const res = await fetch('/api/stats');
         const data = await res.json();
+        allStatsData = data.groups;
 
-        if (data.totalCount !== undefined) {
-            countEl.innerText = data.totalCount;
-
-            if (data.totalCount > 0 && data.groups) {
-                bodyEl.innerHTML = ''; // Clear
-                data.groups.forEach(g => {
-                    const tr = document.createElement('tr');
-                    tr.innerHTML = `
-                        <td>${g.label}</td>
-                        <td>${g.cash}%</td>
-                        <td>${g.etf}%</td>
-                        <td>${g.re}%</td>
-                        <td>${g.active}%</td>
-                        <td class="accent-val">${g.avgReturn}%</td>
-                     `;
-                    bodyEl.appendChild(tr);
-                });
-            } else {
-                bodyEl.innerHTML = '<tr><td colspan="6">尚無統計數據</td></tr>';
-            }
-        } else {
-            bodyEl.innerHTML = '<tr><td colspan="6">載入失敗</td></tr>';
-        }
+        // Show filters and render default (small)
+        document.getElementById('stats-filters').style.display = 'flex';
+        switchStatsGroup('small');
 
     } catch (e) {
         console.error(e);
-        countEl.innerText = '(Error)';
-        bodyEl.innerHTML = '<tr><td colspan="6">連線錯誤</td></tr>';
+        const grid = document.querySelector('.stats-content-grid');
+        if (grid) grid.innerHTML = '<div style="grid-column: 1/-1; text-align:center; padding: 2rem;">連線錯誤</div>';
     }
+}
+
+function switchStatsGroup(groupKey) {
+    if (!allStatsData) return;
+
+    // Update Tab Active State
+    const buttons = document.querySelectorAll('#stats-filters button');
+    buttons.forEach(btn => {
+        btn.classList.toggle('active', btn.getAttribute('onclick').includes(`'${groupKey}'`));
+    });
+
+    const g = allStatsData.find(item => item.key === groupKey);
+    const aBody = document.getElementById('stats-a-body');
+    const bBody = document.getElementById('stats-b-body');
+    const infBox = document.getElementById('stats-inf-box');
+
+    if (!g || g.count === 0) {
+        const emptyMsg = '<tr><td colspan="2">尚無數據</td></tr>';
+        aBody.innerHTML = emptyMsg;
+        bBody.innerHTML = emptyMsg;
+        infBox.innerHTML = '<p>尚無數據</p>';
+        return;
+    }
+
+    // Render Table A (Current)
+    aBody.innerHTML = `
+        <tr><td>現金/定存</td><td>${g.a.cash}%</td></tr>
+        <tr><td>指數/ETF</td><td>${g.a.etf}%</td></tr>
+        <tr><td>房地產</td><td>${g.a.re}%</td></tr>
+        <tr><td>主動投資</td><td>${g.a.active}%</td></tr>
+        <tr class="accent-row"><td>平均預期報酬</td><td>${g.a.avgRet}%</td></tr>
+    `;
+
+    // Render Table B (Target)
+    bBody.innerHTML = `
+        <tr><td>現金/定存</td><td>${g.b.cash}%</td></tr>
+        <tr><td>指數/ETF</td><td>${g.b.etf}%</td></tr>
+        <tr><td>房地產</td><td>${g.b.re}%</td></tr>
+        <tr><td>主動投資</td><td>${g.b.active}%</td></tr>
+        <tr class="accent-row"><td>平均期望報酬</td><td>${g.b.avgRet}%</td></tr>
+    `;
+
+    // Render Inflation
+    infBox.innerHTML = `
+        <span class="inf-item-tag">${g.inf.topItem}</span>
+        <div class="inf-price-val">社群平均預計價格: <span class="accent-val">${g.inf.avgPrice}</span></div>
+        <div style="font-size: 0.8rem; color: #64748b; margin-top: 0.5rem;">Based on ${g.count} reports</div>
+    `;
 }
 
 // --- Persistence Helpers ---
