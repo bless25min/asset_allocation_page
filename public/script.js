@@ -776,8 +776,8 @@ function gatherSimulationData() {
             rateB: parseFloat(document.getElementById('val-rate-b').innerText),
             risk: parseFloat(document.getElementById('out-risk').innerText),
             prob: parseFloat(document.getElementById('out-prob').innerText),
-            infItem: document.getElementById('inf-item-name').innerText,
-            infPrice: document.getElementById('inp-item-price').value
+            infItem: document.getElementById('calc-item').value,
+            infPrice: document.getElementById('calc-price-now').value
         }
     };
 }
@@ -961,14 +961,14 @@ function restorePendingState() {
         if (state.activeB) document.getElementById('slider-b-active').value = state.activeB;
 
         // Inflation
-        if (state.infItem) document.getElementById('inf-item-name').innerText = state.infItem;
-        if (state.infPrice) document.getElementById('inp-item-price').value = state.infPrice;
+        if (state.infItem) document.getElementById('calc-item').value = state.infItem;
+        if (state.infPrice) document.getElementById('calc-price-now').value = state.infPrice;
 
         // Trigger simulator recalculation
         const event = new Event('input', { bubbles: true });
         document.getElementById('slider-b-cash').dispatchEvent(event);
         document.getElementById('slider-a-cash').dispatchEvent(event);
-        document.getElementById('inp-item-price').dispatchEvent(event);
+        document.getElementById('calc-price-now').dispatchEvent(event);
 
     } catch (e) {
         console.error('Restore State Failed:', e);

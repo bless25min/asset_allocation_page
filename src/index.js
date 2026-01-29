@@ -110,7 +110,7 @@ app.get('/api/stats', async (c) => {
         `).all();
 
     if (!results || results.length === 0) {
-      return c.json({ count: 0 });
+      return c.json({ totalCount: 0, groups: [] });
     }
 
     const groups = {
