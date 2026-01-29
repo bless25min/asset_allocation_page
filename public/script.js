@@ -775,15 +775,18 @@ async function loadStats() {
         // 2. Friendship Check
         const friendship = await liff.getFriendship();
         if (!friendship.friendFlag) {
-            countEl.innerText = '需加入好友';
+            countEl.innerText = '需成為好友';
             bodyEl.innerHTML = `
                 <tr>
-                    <td colspan="6" style="padding: 2rem;">
-                        <p style="margin-bottom: 1rem;">🔓 您需要先加入 LINE 官方帳號好友才能查看社群統計數據</p>
-                        <a href="https://line.me/R/ti/p/@YOUR_Line_OA_ID" target="_blank" class="btn btn-primary" style="display:inline-block; text-decoration:none;">
-                            💬 立即加入好友
-                        </a>
-                        <p style="font-size: 0.8rem; color: #94a3b8; margin-top: 1rem;">加入後請重新整理頁面即可查看</p>
+                    <td colspan="6" style="padding: 2.5rem 1rem;">
+                        <p style="margin-bottom: 1rem; font-weight: bold; color: #fff;">🔓 您需要先加入 LINE 官方帳號好友</p>
+                        <p style="font-size: 0.85rem; color: #94a3b8; margin-bottom: 1.5rem;">
+                            由於統計結果為進階功能，請在授權頁面中勾選「加入好友」。<br>
+                            若您剛才遺漏了，請點擊下方按鈕重新授權。
+                        </p>
+                        <button onclick="liff.login()" class="btn btn-primary" style="display:inline-block;">
+                            ✅ 重新登入並加入好友
+                        </button>
                     </td>
                 </tr>
             `;
