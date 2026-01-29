@@ -788,10 +788,10 @@ function gatherSimulationData() {
             rateB: parseFloat(document.getElementById('val-rate-b').innerText),
             risk: parseFloat(document.getElementById('out-risk').innerText),
             prob: parseFloat(document.getElementById('out-prob').innerText),
-            infItem: document.getElementById('calc-item').value,
-            infPriceOld: document.getElementById('calc-price-old').value,
-            infPriceNow: document.getElementById('calc-price-now').value,
-            infRate: CONFIG.USER_INPUTS.calculatedInflation.toFixed(2)
+            infItem: (document.getElementById('calc-item').value).trim() || "",
+            infPriceOld: parseFloat(document.getElementById('calc-price-old').value) || 0,
+            infPriceNow: parseFloat(document.getElementById('calc-price-now').value) || 0,
+            infRate: CONFIG.USER_INPUTS.calculatedInflation ? CONFIG.USER_INPUTS.calculatedInflation.toFixed(2) : "0.00"
         }
     };
 }
@@ -841,6 +841,8 @@ async function loadStats() {
         // 2. Friendship Check
         const friendship = await liff.getFriendship();
         if (!friendship.friendFlag) {
+            const filters = document.getElementById('stats-filters');
+            if (filters) filters.style.display = 'none';
             const grid = document.querySelector('.stats-content-grid');
             if (grid) grid.innerHTML = `
                 <div style="grid-column: 1/-1; padding: 2.5rem 1rem; text-align:center;">

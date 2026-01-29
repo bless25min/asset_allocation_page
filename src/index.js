@@ -170,13 +170,16 @@ app.get('/api/stats', async (c) => {
           g.b.ret += (metrics.rateB || 0);
         }
 
-        // Inflation (Only if valid)
-        const infNow = metrics.infPriceNow || metrics.infPrice;
-        if (metrics.infItem && infNow > 0) {
+        // Inflation (Only if valid & positive)
+        const infNow = parseFloat(metrics.infPriceNow || metrics.infPrice || 0);
+        const infOld = parseFloat(metrics.infPriceOld || 0);
+        const itemName = (metrics.infItem || "").trim();
+
+        if (itemName && infNow > 0 && infOld > 0) {
           g.inf.count++;
           g.inf.items.push({
-            name: metrics.infItem,
-            old: metrics.infPriceOld || 0,
+            name: itemName,
+            old: infOld,
             now: infNow,
             rate: metrics.infRate || 0
           });
