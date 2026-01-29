@@ -5,11 +5,12 @@
  */
 
 // Wait for DOM
-document.addEventListener('DOMContentLoaded', async () => {
+document.addEventListener('DOMContentLoaded', () => {
     initInflationCalc();
     initSimulator();
     initEmbedMode();
-    await initAuth();
+    bindUIEvents(); // Bind immediately
+    initAuth();     // Start LIFF in background
 });
 
 // --- Part 1: Inflation Calculator ---
@@ -602,11 +603,51 @@ function initEmbedMode() {
 }
 
 // --- Part 4: Auth & Data Logic (LIFF V2) ---
-const LIFF_ID = '1656872168-iM0I3QG0'; // 已更新為真實 LIFF ID
+const LIFF_ID = '1656872168-iM0I3QG0';
+let LIFF_READY = false;
+
+function bindUIEvents() {
+    // 1. Auth Actions
+    document.getElementById('btn-login').addEventListener('click', () => {
+        if (!LIFF_READY) return alert('系統初始化中，請稍候...');
+        if (!liff.isLoggedIn()) {
+            savePendingState();
+            liff.login();
+        }
+    });
+
+    document.getElementById('btn-logout').addEventListener('click', () => {
+        if (!LIFF_READY) return alert('系統初始化中...');
+        logout();
+    });
+
+    document.getElementById('btn-save-sim').addEventListener('click', () => {
+        if (!LIFF_READY) return alert('請稍候，系統認證中...');
+        saveSimulation();
+    });
+
+    document.getElementById('btn-view-stats').addEventListener('click', () => {
+        if (!LIFF_READY) return alert('統計功能載入中，請稍候...');
+        loadStats();
+    });
+
+    // 2. Modal Close Actions
+    const closeStats = () => document.getElementById('stats-modal').classList.add('hidden');
+    document.getElementById('btn-close-stats').addEventListener('click', closeStats);
+
+    const footerBtn = document.getElementById('btn-close-stats-footer');
+    if (footerBtn) footerBtn.addEventListener('click', closeStats);
+
+    const overlay = document.getElementById('stats-modal');
+    overlay.addEventListener('click', (e) => {
+        if (e.target === overlay) closeStats();
+    });
+}
 
 async function initAuth() {
     try {
         await liff.init({ liffId: LIFF_ID });
+        LIFF_READY = true;
 
         if (liff.isLoggedIn()) {
             await handleLoggedInUser();
@@ -614,52 +655,47 @@ async function initAuth() {
             updateAuthState(false);
         }
 
-        // Restore any pending state from pre-login
+        // Restore state
         restorePendingState();
 
-        // [UX Optimization] Check if user was waiting to see stats
+        // [UX] Post-login auto-open
         if (localStorage.getItem('pending_stats_open')) {
             localStorage.removeItem('pending_stats_open');
-            setTimeout(loadStats, 500); // Small delay to ensure UI is ready
+            setTimeout(loadStats, 800); // Android needs slightly more time
         }
-
-        // Bind Actions
-        document.getElementById('btn-login').addEventListener('click', () => {
-            if (!liff.isLoggedIn()) {
-                savePendingState();
-                liff.login();
-            }
-        });
-        document.getElementById('btn-logout').addEventListener('click', logout);
-        document.getElementById('btn-save-sim').addEventListener('click', saveSimulation);
-        document.getElementById('btn-view-stats').addEventListener('click', loadStats);
-
-        // Modal Close Actions (Binding both buttons + backdrop)
-        const closeStats = () => document.getElementById('stats-modal').classList.add('hidden');
-        document.getElementById('btn-close-stats').addEventListener('click', closeStats);
-
-        const footerBtn = document.getElementById('btn-close-stats-footer');
-        if (footerBtn) footerBtn.addEventListener('click', closeStats);
-
-        const overlay = document.getElementById('stats-modal');
-        overlay.addEventListener('click', (e) => {
-            if (e.target === overlay) closeStats();
-        });
-
-
     } catch (error) {
         console.error('LIFF Init Failed:', error);
-        if (error.code === "invalid_argument") {
-            console.warn("尚未設定 LIFF ID，請至 script.js 更新。");
+        // Show user-friendly error on Android
+        if (window.navigator.userAgent.includes('Android')) {
+            alert('LINE 登入初始化失敗，請嘗試由官方帳號重新開啟連結。');
         }
     }
 }
 
 async function handleLoggedInUser() {
     try {
-        const profile = await liff.getProfile();
-        const idToken = liff.getIDToken();
+        // Android WebView can be slow to sync idToken
+        let idToken = liff.getIDToken();
+        let retries = 0;
 
+        while (!idToken && retries < 5) {
+            console.warn(`idToken not ready, retry ${retries + 1}...`);
+            await new Promise(r => setTimeout(r, 600)); // Increased delay for Android
+            idToken = liff.getIDToken();
+            retries++;
+        }
+
+        if (!idToken) {
+            console.error('Failed to get idToken after retries');
+            // Check if we have cached profile
+            if (localStorage.getItem('line_user_id')) {
+                updateAuthState(true);
+                return;
+            }
+            throw new Error('無法取得 LINE 認證資訊，請嘗試重新整理頁面');
+        }
+
+        const profile = await liff.getProfile();
         const res = await fetch('/api/auth/verify', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -674,14 +710,17 @@ async function handleLoggedInUser() {
             localStorage.setItem('line_user_pic', profile.pictureUrl);
             updateAuthState(true);
         } else {
-            console.error('Backend Verify Failed:', data.error);
-            alert('登入驗證失敗，請重試');
-            liff.logout();
+            throw new Error(data.error || '後端認證失敗');
+        }
+    } catch (e) {
+        console.error('Handle User Failed:', e);
+        // On Android, provide a clearer hint
+        if (window.navigator.userAgent.includes('Android')) {
+            alert('登入處理失敗：' + e.message);
+        }
+        if (!localStorage.getItem('line_user_id')) {
             updateAuthState(false);
         }
-
-    } catch (e) {
-        console.error('Login Flow Error:', e);
     }
 }
 
