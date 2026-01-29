@@ -907,6 +907,11 @@ async function loadStats() {
         }
 
         // 3. Fetch Data
+        // Meta Pixel: Track CompleteRegistration (Login + Friend Add Success)
+        if (typeof fbq === 'function') {
+            fbq('track', 'CompleteRegistration');
+        }
+
         const res = await fetch('/api/stats');
         const data = await res.json();
         allStatsData = data.groups;
