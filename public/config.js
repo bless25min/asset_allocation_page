@@ -12,7 +12,7 @@ const CONFIG = {
         REAL_ESTATE_RETURN: 5.5,
         ACTIVE_RETURN_AVG: 15.0,
         ACTIVE_RETURN_BEST: 120.0,
-        ACTIVE_RETURN_PENALTY: -20.0,
+        ACTIVE_RETURN_PENALTY: -50.0,
         INFLATION_RATE: 2.5
     },
 
