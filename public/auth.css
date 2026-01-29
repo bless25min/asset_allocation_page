@@ -351,3 +351,48 @@ td:first-child {
 .hidden {
     display: none !important;
 }
+
+/* --- Site Footer (Integrated Compact) --- */
+.site-footer {
+    text-align: center;
+    padding: 1rem 1rem 3rem;
+    /* Much tighter padding */
+    margin-top: 1rem;
+    color: #cbd5e1;
+    /* Slate-300 to match page text */
+    font-size: 0.8rem;
+    opacity: 0.9;
+    border: none;
+    background: transparent;
+    position: relative;
+    z-index: 10;
+}
+
+.footer-content {
+    display: flex;
+    flex-direction: column;
+    gap: 0.3rem;
+}
+
+.footer-content p {
+    margin: 0;
+}
+
+.site-footer a {
+    color: inherit;
+    /* Match text color */
+    text-decoration: underline;
+    opacity: 0.8;
+    transition: opacity 0.2s;
+}
+
+.site-footer a:hover {
+    color: #fff;
+    opacity: 1;
+}
+
+.privacy-link {
+    display: inline-block;
+    margin-top: 0.5rem;
+    font-size: 0.8rem;
+}
