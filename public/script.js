@@ -441,7 +441,7 @@ function initSimulator() {
     // Separation of Concerns: 
     // updateUI = Instant (Labels + Loading Placeholder)
     // updateAnalysisResults = Delayed (Calculation + DOM thrashing + Chart)
-    const debouncedUpdateAnalysis = debounce(updateAnalysisResults, 50);
+    const debouncedUpdateAnalysis = debounce(updateAnalysisResults, 1000);
 
     let isAnalyzing = false; // State to track analyzing status
 
