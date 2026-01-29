@@ -438,14 +438,13 @@ function initSimulator() {
     }
 
     // Debounced Chart Update (50ms delay is imperceptible but saves performance)
-    const debouncedUpdateChart = debounce(updateChart, 50);
+    // Debounced Analysis Update (Metrics + Feedback + Chart)
+    // Separation of Concerns: 
+    // updateUI = Instant (Labels)
+    // updateAnalysisResults = Delayed (Calculation + DOM thrashing + Chart)
+    const debouncedUpdateAnalysis = debounce(updateAnalysisResults, 50);
 
-    function updateUI() {
-        // Sync Labels Group A
-        Object.keys(groups.a.state).forEach(k => groups.a.labels[k].innerText = `${groups.a.state[k]}%`);
-        // Sync Labels Group B
-        Object.keys(groups.b.state).forEach(k => groups.b.labels[k].innerText = `${groups.b.state[k]}%`);
-
+    function updateAnalysisResults() {
         const metrics = calculateMetrics();
 
         if (finInputs.rateA) finInputs.rateA.innerText = `${metrics.rateA.toFixed(1)}%`;
@@ -464,7 +463,6 @@ function initSimulator() {
         const maxReward = metrics.bestB.toFixed(1);
         const maxSign = metrics.bestB > 0 ? '+' : '';
         outputs.risk.innerHTML = `<span style="color:#ef4444">${minRisk}%</span> ~ <span style="color:#10b981">${maxSign}${maxReward}%</span>`;
-        // Removed static single value
 
         outputs.prob.innerText = `${Math.round(metrics.probB)}%`;
 
@@ -513,8 +511,19 @@ function initSimulator() {
         `;
         outputs.feedback.style.color = '#e2e8f0';
 
-        // Use Debounced Chart Update
-        debouncedUpdateChart(metrics);
+        // Update Chart (Metric dependent)
+        updateChart(metrics);
+    }
+
+    function updateUI() {
+        // Phase 1: INSTANT Feedback (Zero Lag)
+        // Sync Labels Group A
+        Object.keys(groups.a.state).forEach(k => groups.a.labels[k].innerText = `${groups.a.state[k]}%`);
+        // Sync Labels Group B
+        Object.keys(groups.b.state).forEach(k => groups.b.labels[k].innerText = `${groups.b.state[k]}%`);
+
+        // Phase 2: DEBOUNCED Analysis (Heavy Lifting)
+        debouncedUpdateAnalysis();
     }
 
     // Init
