@@ -148,9 +148,10 @@ app.get('/api/stats', async (c) => {
 
         g.count++;
 
-        // Panel A (Only if valid)
+        // Panel A (Only if valid & changed from default)
         const allocA = allocRaw.panelA;
-        if (allocA && (allocA.cash + allocA.etf + allocA.re + allocA.active > 0)) {
+        const isDefaultA = allocA && allocA.cash === 100 && (allocA.etf === 0 && allocA.re === 0 && allocA.active === 0);
+        if (allocA && !isDefaultA && (allocA.cash + allocA.etf + allocA.re + allocA.active > 0)) {
           g.a.count++;
           g.a.cash += (allocA.cash || 0);
           g.a.etf += (allocA.etf || 0);
@@ -159,9 +160,10 @@ app.get('/api/stats', async (c) => {
           g.a.ret += (metrics.rateA || 0);
         }
 
-        // Panel B (Only if valid)
+        // Panel B (Only if valid & changed from default)
         const allocB = allocRaw.panelB || (allocRaw.cash ? allocRaw : null);
-        if (allocB && (allocB.cash + allocB.etf + allocB.re + allocB.active > 0)) {
+        const isDefaultB = allocB && allocB.cash === 100 && (allocB.etf === 0 && allocB.re === 0 && allocB.active === 0);
+        if (allocB && !isDefaultB && (allocB.cash + allocB.etf + allocB.re + allocB.active > 0)) {
           g.b.count++;
           g.b.cash += (allocB.cash || 0);
           g.b.etf += (allocB.etf || 0);

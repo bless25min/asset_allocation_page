@@ -971,8 +971,9 @@ function savePendingState() {
             reB: document.getElementById('slider-b-re').value,
             activeB: document.getElementById('slider-b-active').value,
             // Inflation
-            infItem: document.getElementById('inf-item-name').innerText,
-            infPrice: document.getElementById('inp-item-price').value
+            infItem: document.getElementById('calc-item').value,
+            infPriceOld: document.getElementById('calc-price-old').value,
+            infPriceNow: document.getElementById('calc-price-now').value
         };
         localStorage.setItem('pending_sim_state', JSON.stringify(state));
     } catch (e) {
@@ -1003,7 +1004,8 @@ function restorePendingState() {
 
         // Inflation
         if (state.infItem) document.getElementById('calc-item').value = state.infItem;
-        if (state.infPrice) document.getElementById('calc-price-now').value = state.infPrice;
+        if (state.infPriceOld) document.getElementById('calc-price-old').value = state.infPriceOld;
+        if (state.infPriceNow) document.getElementById('calc-price-now').value = state.infPriceNow;
 
         // Trigger simulator recalculation
         const event = new Event('input', { bubbles: true });
