@@ -51,7 +51,7 @@
         !function (f, b, e, v, n, t, s) {
             if (f.fbq) return; n = f.fbq = function () {
                 n.callMethod ?
-                n.callMethod.apply(n, arguments) : n.queue.push(arguments)
+                    n.callMethod.apply(n, arguments) : n.queue.push(arguments)
             };
             if (!f._fbq) f._fbq = n; n.push = n; n.loaded = !0; n.version = '2.0';
             n.queue = []; t = b.createElement(e); t.async = !0;
@@ -239,14 +239,16 @@
                     </div>
                 </div>
 
-                <!-- Action Buttons (New) -->
-                <div class="action-buttons">
-                    <button id="btn-save-sim" class="btn btn-secondary hidden">
-                        💾 儲存我的配置
-                    </button>
-                    <button id="btn-view-stats" class="btn btn-outline">
-                        📊 查看大家怎麼配
-                    </button>
+                <!-- Action Buttons (CTA Card) -->
+                <div class="cta-card glass-panel">
+                    <div class="action-buttons">
+                        <button id="btn-save-sim" class="btn btn-secondary hidden">
+                            💾 儲存我的配置
+                        </button>
+                        <button id="btn-view-stats" class="btn btn-outline">
+                            📊 查看大家怎麼配
+                        </button>
+                    </div>
                 </div>
 
                 <!-- Chart -->

@@ -401,6 +401,19 @@ function initSimulator() {
         }
     }
 
+    // Debounce Utility to prevent chart thrashing
+    function debounce(func, wait) {
+        let timeout;
+        return function (...args) {
+            const context = this;
+            clearTimeout(timeout);
+            timeout = setTimeout(() => func.apply(context, args), wait);
+        };
+    }
+
+    // Debounced Chart Update (50ms delay is imperceptible but saves performance)
+    const debouncedUpdateChart = debounce(updateChart, 50);
+
     function updateUI() {
         // Sync Labels Group A
         Object.keys(groups.a.state).forEach(k => groups.a.labels[k].innerText = `${groups.a.state[k]}%`);
@@ -422,8 +435,6 @@ function initSimulator() {
         outputs.risk.innerText = `${metrics.maxRiskB.toFixed(1)}%`;
         outputs.prob.innerText = `${Math.round(metrics.probB)}%`;
 
-        // Range Bar Logic Removed per user request
-
         // Advanced Feedback Logic
         const state = groups.b.state;
         const totalCore = state.etf + state.re;
@@ -434,17 +445,14 @@ function initSimulator() {
             scenarioKey = 'DANGER_ACTIVE';
         }
         // 2. Liquidity Crisis Check (Priority #2)
-        // High ROI means nothing if you have to sell during a dip for an emergency.
         else if (state.cash < 15) {
             scenarioKey = 'LIQUIDITY_CRISIS';
         }
         // 3. No Real Estate Check (Priority #3)
-        // Missing the "Inflation Shield" and Leverage opportunities.
         else if (state.re < 5) {
             scenarioKey = 'NO_REAL_ESTATE';
         }
         // 4. Balanced / Golden Ratio (Prioritize Mix over Single Asset)
-        // Active is 5-20% (Satellite) AND there is substantial Core AND Cash Buffer (Safe Airbag)
         else if (state.active >= 5 && state.active <= 20 && totalCore >= 40 && state.cash >= 15) {
             scenarioKey = 'BALANCED';
         }
@@ -470,9 +478,10 @@ function initSimulator() {
             </h4>
             ${feedbackConfig.HTML}
         `;
-        outputs.feedback.style.color = '#e2e8f0'; // Reset base color text, let HTML handle specifics
+        outputs.feedback.style.color = '#e2e8f0';
 
-        updateChart(metrics);
+        // Use Debounced Chart Update
+        debouncedUpdateChart(metrics);
     }
 
     // Init

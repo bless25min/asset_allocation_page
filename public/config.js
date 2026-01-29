@@ -10,38 +10,25 @@ const CONFIG = {
         CASH_RETURN: 1.5,
         ETF_RETURN: 8.0,
         REAL_ESTATE_RETURN: 5.5,
-
-        // [MODIFIED] 主動交易修正
-        // Average: 25% (很高，但在多頭市場尚可解釋，且不會讓20年複利變成天文數字)
-        // Meta 紅線警告：如果這裡設超過 30%，20年後的數字會大到像詐騙。
-        ACTIVE_RETURN_AVG: 25.0,
-
-        // Best: 120% (這體現了主動交易的魅力：一年翻倍)
-        // 這告訴用戶：如果你是那個天選之人，你可以賺這麼多。
+        ACTIVE_RETURN_AVG: 15.0,
         ACTIVE_RETURN_BEST: 120.0,
-
-        ACTIVE_RETURN_PENALTY: -50.0,
+        ACTIVE_RETURN_PENALTY: -20.0,
         INFLATION_RATE: 2.5
     },
 
-    // 2. Risks (維持不變，高報酬伴隨爆倉風險)
+    // 2. Risk Factors
     RISK: {
         CASH_RISK: 0,
         ETF_RISK: -45,
         REAL_ESTATE_RISK: -25,
-
-        // 主動交易最慘就是歸零 (Margin Call / Liquidation)
         ACTIVE_RISK: -100
     },
 
-    // 3. Probabilities (維持殘酷的現實)
+    // 3. Probabilities
     PROBABILITY: {
         CASH_PROB: 99,
         ETF_PROB: 95,
         REAL_ESTATE_PROB: 90,
-
-        // 只有 10% 的人能長期維持上述的高回報，其他 90% 都是輸家
-        // 這就是為什麼它叫「高風險」
         ACTIVE_PROB: 10
     },
 
