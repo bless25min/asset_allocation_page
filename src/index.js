@@ -130,8 +130,8 @@ app.get('/api/stats', async (c) => {
 
         const initial = parseFloat(input.initial || 0);
         let g;
-        if (initial < 100) g = groups.small;
-        else if (initial <= 500) g = groups.middle;
+        if (initial < 1000000) g = groups.small;
+        else if (initial <= 5000000) g = groups.middle;
         else g = groups.large;
 
         g.count++;

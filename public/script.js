@@ -754,6 +754,14 @@ async function saveSimulation() {
 }
 
 async function loadStats() {
+    // 1. Force Login Check
+    if (!liff.isLoggedIn()) {
+        if (confirm('查看社群配置統計資訊需要登入 LINE，是否現在登入？')) {
+            liff.login();
+        }
+        return;
+    }
+
     const modal = document.getElementById('stats-modal');
     modal.classList.remove('hidden');
 
@@ -764,6 +772,25 @@ async function loadStats() {
     bodyEl.innerHTML = '<tr><td colspan="6">載入數據中...</td></tr>';
 
     try {
+        // 2. Friendship Check
+        const friendship = await liff.getFriendship();
+        if (!friendship.friendFlag) {
+            countEl.innerText = '需加入好友';
+            bodyEl.innerHTML = `
+                <tr>
+                    <td colspan="6" style="padding: 2rem;">
+                        <p style="margin-bottom: 1rem;">🔓 您需要先加入 LINE 官方帳號好友才能查看社群統計數據</p>
+                        <a href="https://line.me/R/ti/p/@YOUR_Line_OA_ID" target="_blank" class="btn btn-primary" style="display:inline-block; text-decoration:none;">
+                            💬 立即加入好友
+                        </a>
+                        <p style="font-size: 0.8rem; color: #94a3b8; margin-top: 1rem;">加入後請重新整理頁面即可查看</p>
+                    </td>
+                </tr>
+            `;
+            return;
+        }
+
+        // 3. Fetch Data
         const res = await fetch('/api/stats');
         const data = await res.json();
 
