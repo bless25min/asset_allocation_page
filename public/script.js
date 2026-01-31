@@ -198,14 +198,20 @@ function initSimulator() {
 
     // --- Math ---
     function getWeightedReturn(reqState) {
-        let activeReturn = (reqState.active > 20) ? CONFIG.RATES.ACTIVE_RETURN_PENALTY : CONFIG.RATES.ACTIVE_RETURN_AVG;
-        if (reqState.active < 5) activeReturn = 0; // Ineffective zone
+        // EV = Rate * Probability (Expected Value logic)
+        // No explicit penalty, just low probability for Active
 
+        const wCash = (CONFIG.PROBABILITY.CASH_PROB / 100);
+        const wEtf = (CONFIG.PROBABILITY.ETF_PROB / 100);
+        const wRe = (CONFIG.PROBABILITY.REAL_ESTATE_PROB / 100);
+        const wActive = (CONFIG.PROBABILITY.ACTIVE_PROB / 100);
+
+        // Calculate Expected Return based on EV of each component
         return (
-            (reqState.cash * CONFIG.RATES.CASH_RETURN) +
-            (reqState.etf * CONFIG.RATES.ETF_RETURN) +
-            (reqState.re * CONFIG.RATES.REAL_ESTATE_RETURN) +
-            (reqState.active * activeReturn)
+            (reqState.cash * CONFIG.RATES.CASH_RETURN * wCash) +
+            (reqState.etf * CONFIG.RATES.ETF_RETURN * wEtf) +
+            (reqState.re * CONFIG.RATES.REAL_ESTATE_RETURN * wRe) +
+            (reqState.active * CONFIG.RATES.ACTIVE_RETURN_AVG * wActive)
         ) / 100;
     }
 

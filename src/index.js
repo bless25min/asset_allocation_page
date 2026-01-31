@@ -118,20 +118,29 @@ app.get('/api/stats', async (c) => {
       CASH_RETURN: 1.5,
       ETF_RETURN: 8.0,
       REAL_ESTATE_RETURN: 5.5,
-      ACTIVE_RETURN_AVG: 15.0,
-      ACTIVE_RETURN_PENALTY: -50.0
+      ACTIVE_RETURN_AVG: 25.0
     };
 
-    // Helper: Calculate Weighted Return for an Allocation State
-    function calcWeightedReturn(state) {
-      let activeReturn = (state.active > 20) ? RATES.ACTIVE_RETURN_PENALTY : RATES.ACTIVE_RETURN_AVG;
-      if (state.active < 5) activeReturn = 0; // Ineffective zone
+    const PROBABILITY = {
+      CASH_PROB: 99,
+      ETF_PROB: 95,
+      REAL_ESTATE_PROB: 90,
+      ACTIVE_PROB: 10
+    };
 
+    // Helper: Calculate Weighted Return for an Allocation State (EV Based)
+    function calcWeightedReturn(state) {
+      const wCash = (PROBABILITY.CASH_PROB / 100);
+      const wEtf = (PROBABILITY.ETF_PROB / 100);
+      const wRe = (PROBABILITY.REAL_ESTATE_PROB / 100);
+      const wActive = (PROBABILITY.ACTIVE_PROB / 100);
+
+      // EV = Rate * Prob
       return (
-        (state.cash * RATES.CASH_RETURN) +
-        (state.etf * RATES.ETF_RETURN) +
-        (state.re * RATES.REAL_ESTATE_RETURN) +
-        (state.active * activeReturn)
+        (state.cash * RATES.CASH_RETURN * wCash) +
+        (state.etf * RATES.ETF_RETURN * wEtf) +
+        (state.re * RATES.REAL_ESTATE_RETURN * wRe) +
+        (state.active * RATES.ACTIVE_RETURN_AVG * wActive)
       ) / 100;
     }
 
