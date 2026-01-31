@@ -113,23 +113,52 @@ app.get('/api/stats', async (c) => {
       return c.json({ totalCount: 0, groups: [] });
     }
 
+    // --- Business Logic Constants (Mirrors config.js) ---
+    const RATES = {
+      CASH_RETURN: 1.5,
+      ETF_RETURN: 8.0,
+      REAL_ESTATE_RETURN: 5.5,
+      ACTIVE_RETURN_AVG: 15.0,
+      ACTIVE_RETURN_PENALTY: -50.0
+    };
+
+    // Helper: Calculate Weighted Return for an Allocation State
+    function calcWeightedReturn(state) {
+      let activeReturn = (state.active > 20) ? RATES.ACTIVE_RETURN_PENALTY : RATES.ACTIVE_RETURN_AVG;
+      if (state.active < 5) activeReturn = 0; // Ineffective zone
+
+      return (
+        (state.cash * RATES.CASH_RETURN) +
+        (state.etf * RATES.ETF_RETURN) +
+        (state.re * RATES.REAL_ESTATE_RETURN) +
+        (state.active * activeReturn)
+      ) / 100;
+    }
+
+    // Helper: Calculate Inflation CAGR
+    function calcInflation(oldPrice, nowPrice) {
+      if (!oldPrice || !nowPrice || oldPrice <= 0) return 0;
+      // Assume 10 years as per UI default
+      return (Math.pow(nowPrice / oldPrice, 1 / 10) - 1) * 100;
+    }
+
     const groups = {
       small: {
         label: '小資族 (< 300萬)', count: 0,
-        a: { cash: 0, etf: 0, re: 0, active: 0, ret: 0, count: 0 },
-        b: { cash: 0, etf: 0, re: 0, active: 0, ret: 0, count: 0 },
+        a: { cash: 0, etf: 0, re: 0, active: 0, count: 0 },
+        b: { cash: 0, etf: 0, re: 0, active: 0, count: 0 },
         inf: { items: [], count: 0 }
       },
       middle: {
         label: '中產階級 (300-3000萬)', count: 0,
-        a: { cash: 0, etf: 0, re: 0, active: 0, ret: 0, count: 0 },
-        b: { cash: 0, etf: 0, re: 0, active: 0, ret: 0, count: 0 },
+        a: { cash: 0, etf: 0, re: 0, active: 0, count: 0 },
+        b: { cash: 0, etf: 0, re: 0, active: 0, count: 0 },
         inf: { items: [], count: 0 }
       },
       large: {
         label: '富裕層 (> 3000萬)', count: 0,
-        a: { cash: 0, etf: 0, re: 0, active: 0, ret: 0, count: 0 },
-        b: { cash: 0, etf: 0, re: 0, active: 0, ret: 0, count: 0 },
+        a: { cash: 0, etf: 0, re: 0, active: 0, count: 0 },
+        b: { cash: 0, etf: 0, re: 0, active: 0, count: 0 },
         inf: { items: [], count: 0 }
       }
     };
@@ -157,7 +186,6 @@ app.get('/api/stats', async (c) => {
           g.a.etf += (allocA.etf || 0);
           g.a.re += (allocA.re || 0);
           g.a.active += (allocA.active || 0);
-          g.a.ret += (metrics.rateA || 0);
         }
 
         // Panel B (Only if valid & changed from default)
@@ -169,7 +197,6 @@ app.get('/api/stats', async (c) => {
           g.b.etf += (allocB.etf || 0);
           g.b.re += (allocB.re || 0);
           g.b.active += (allocB.active || 0);
-          g.b.ret += (metrics.rateB || 0);
         }
 
         // Inflation (Only if valid & positive)
@@ -179,18 +206,20 @@ app.get('/api/stats', async (c) => {
 
         if (itemName && infNow > 0 && infOld > 0) {
           g.inf.count++;
+          // Recalculate rate to fix backend/frontend mismatch or default values
+          const realRate = calcInflation(infOld, infNow);
           g.inf.items.push({
             name: itemName,
             old: infOld,
             now: infNow,
-            rate: metrics.infRate || 0
+            rate: realRate.toFixed(2)
           });
         }
 
       } catch (e) { /* skip malformed */ }
     }
 
-    // Average them
+    // Average them & Calculate Return of Average Allocation
     const finalGroups = Object.keys(groups).map(key => {
       const g = groups[key];
       if (g.count === 0) return { key, label: g.label, count: 0 };
@@ -198,23 +227,33 @@ app.get('/api/stats', async (c) => {
       // Get last 20 inflation items (or random)
       const feed = g.inf.items.slice(-20).reverse();
 
+      // Avg Allocation A
+      const avgA = {
+        cash: g.a.count ? Math.round(g.a.cash / g.a.count) : 0,
+        etf: g.a.count ? Math.round(g.a.etf / g.a.count) : 0,
+        re: g.a.count ? Math.round(g.a.re / g.a.count) : 0,
+        active: g.a.count ? Math.round(g.a.active / g.a.count) : 0,
+      };
+
+      // Avg Allocation B
+      const avgB = {
+        cash: g.b.count ? Math.round(g.b.cash / g.b.count) : 0,
+        etf: g.b.count ? Math.round(g.b.etf / g.b.count) : 0,
+        re: g.b.count ? Math.round(g.b.re / g.b.count) : 0,
+        active: g.b.count ? Math.round(g.b.active / g.b.count) : 0,
+      };
+
       return {
         key: key,
         label: g.label,
         count: g.count,
         a: {
-          cash: g.a.count ? Math.round(g.a.cash / g.a.count) : 0,
-          etf: g.a.count ? Math.round(g.a.etf / g.a.count) : 0,
-          re: g.a.count ? Math.round(g.a.re / g.a.count) : 0,
-          active: g.a.count ? Math.round(g.a.active / g.a.count) : 0,
-          avgRet: g.a.count ? (g.a.ret / g.a.count).toFixed(1) : "0.0"
+          ...avgA,
+          avgRet: g.a.count ? calcWeightedReturn(avgA).toFixed(1) : "0.0"
         },
         b: {
-          cash: g.b.count ? Math.round(g.b.cash / g.b.count) : 0,
-          etf: g.b.count ? Math.round(g.b.etf / g.b.count) : 0,
-          re: g.b.count ? Math.round(g.b.re / g.b.count) : 0,
-          active: g.b.count ? Math.round(g.b.active / g.b.count) : 0,
-          avgRet: g.b.count ? (g.b.ret / g.b.count).toFixed(1) : "0.0"
+          ...avgB,
+          avgRet: g.b.count ? calcWeightedReturn(avgB).toFixed(1) : "0.0"
         },
         inf: {
           feed: feed,
