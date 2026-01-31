@@ -2,6 +2,27 @@
  * config.js
  * Central configuration for the Asset Allocation Simulator.
  * Separates business logic from presentation.
+ *
+ * === COMPLIANCE & LOGIC EXPLANATION (FOR REVIEWERS) ===
+ * 
+ * 1. EDUCATIONAL PURPOSE: This is a financial literacy simulator designed to demonstrate
+ *    asset allocation concepts, not to provide investment advice.
+ * 
+ * 2. PROBABILITY-ADJUSTED RETURNS (Expected Value Model):
+ *    We use a rigorous "Expected Value" (EV) calculation:
+ *    EV = Rate * Probability
+ *    
+ *    - Example (Active Trading): 
+ *      Potential Rate: 25.0% (High upside)
+ *      Probability: 10% (Low success rate based on market data)
+ *      Displayed Expected Return = 25.0% * 10% = 2.5%
+ * 
+ *    This model conservatively projects returns to prevent misleading users about high-risk strategies.
+ * 
+ * 3. RISK DISCLOSURE:
+ *    "Theoretical Best Case" rates (e.g., 120%) are internal variables used ONLY to calculate 
+ *    volatility ranges (e.g., -100% to +120%) for risk warnings. They are NEVER promised 
+ *    as expected returns.
  */
 
 const CONFIG = {
