@@ -515,7 +515,7 @@ function initSimulator() {
                     </h4>
                     ${feedbackConfig.HTML}
                 </div>
-                <button class="lock-overlay-btn" onclick="saveAndLogin()">
+                <button class="lock-overlay-btn">
                      🔒 登入解鎖完整分析報告
                 </button>
             `;
@@ -710,6 +710,15 @@ function bindUIEvents() {
         if (!LIFF_READY) return alert('系統初始化中，請稍候...');
         if (!liff.isLoggedIn()) {
             saveAndLogin();
+        }
+    });
+
+    // 2. Dynamic Elements Delegation (Lock Button)
+    document.body.addEventListener('click', (e) => {
+        if (e.target.matches('.lock-overlay-btn') || e.target.closest('.lock-overlay-btn')) {
+            // Ensure login trigger
+            if (!LIFF_READY) return alert('系統初始化中，請稍候...');
+            window.saveAndLogin();
         }
     });
 
