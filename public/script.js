@@ -717,10 +717,16 @@ function bindUIEvents() {
     }
 
     // 2. Dynamic Elements Delegation (Lock Button)
+    // 2. Dynamic Elements Delegation (Lock Button)
     document.body.addEventListener('click', (e) => {
         if (e.target.matches('.lock-overlay-btn') || e.target.closest('.lock-overlay-btn')) {
+            console.log('[Debug] Lock Button Clicked via Delegation');
             // Ensure login trigger
-            if (!LIFF_READY) return alert('系統初始化中，請稍候...');
+            if (!LIFF_READY) {
+                console.warn('[Debug] LIFF Not Ready');
+                return alert('系統初始化中，請稍候...');
+            }
+            console.log('[Debug] Calling saveAndLogin');
             window.saveAndLogin();
         }
     });
@@ -744,8 +750,8 @@ function bindUIEvents() {
     const btnStats = document.getElementById('btn-view-stats');
     if (btnStats) {
         btnStats.addEventListener('click', () => {
-            if (!LIFF_READY) return alert('統計功能載入中，請稍候...');
-            loadStats();
+            // Deep Link Login Flow acts as the single source of truth
+            saveAndLogin();
         });
     }
 
@@ -777,26 +783,41 @@ async function initAuth() {
         await liff.init({ liffId: LIFF_ID });
         LIFF_READY = true;
 
+        // Check for Intent via URL Param 'o'
+        const urlParams = new URLSearchParams(window.location.search);
+        const hasIntent = urlParams.has('o');
+
         if (liff.isLoggedIn()) {
             await handleLoggedInUser();
+            restorePendingState();
+
+            // [Auto-Save]
+            if (localStorage.getItem('line_user_id')) {
+                saveSimulation(true);
+            }
+
+            // [UX] Success Path: Auto-open Stats if intent present
+            if (hasIntent) {
+                setTimeout(loadStats, 800);
+            }
         } else {
+            // [Guest Path]
             updateAuthState(false);
+            restorePendingState();
+
+            // [PASSIVE MODE] 
+            // We DO NOT force login here, even if 'o=1' exists.
+            // If user is guest with 'o=1', it means they likely cancelled the login
+            // or are just visiting a shared link.
+            // We wait for them to click the button manually.
         }
 
-        // Restore state
-        restorePendingState();
-
-        // [UX] Post-login auto-open
-        if (localStorage.getItem('pending_stats_open')) {
-            localStorage.removeItem('pending_stats_open');
-            setTimeout(loadStats, 800); // Android needs slightly more time
-        }
+        // Cleanup legacy flags
+        localStorage.removeItem('pending_stats_open');
+        sessionStorage.removeItem('login_attempted');
     } catch (error) {
         console.error('LIFF Init Failed:', error);
-        // Show user-friendly error on Android
-        if (window.navigator.userAgent.includes('Android')) {
-            alert('LINE 登入初始化失敗，請嘗試由官方帳號重新開啟連結。');
-        }
+        alert('LINE 登入初始化失敗 (Error: ' + (error.message || error) + ')');
     }
 }
 
@@ -902,16 +923,19 @@ function logout() {
     }
 }
 
-async function saveSimulation() {
+async function saveSimulation(isSilent = false) {
     if (!liff.isLoggedIn()) {
-        liff.login();
+        if (!isSilent) liff.login();
         return;
     }
 
     const btn = document.getElementById('btn-save-sim');
-    const originalText = btn.innerText;
-    btn.innerText = '儲存中...';
-    btn.disabled = true;
+    const originalText = btn ? btn.innerText : '儲存配置';
+
+    if (btn && !isSilent) {
+        btn.innerText = '儲存中...';
+        btn.disabled = true;
+    }
 
     try {
         const userId = liff.getDecodedIDToken().sub;
@@ -928,15 +952,18 @@ async function saveSimulation() {
 
         const json = await res.json();
         if (json.success) {
-            alert('✅ 配置已儲存至您的帳號！');
+            if (!isSilent) alert('✅ 配置已儲存至您的帳號！');
+            else console.log('Auto-saved simulation data.');
         } else {
-            alert('❌ 儲存失敗: ' + (json.error || 'Unknown'));
+            if (!isSilent) alert('❌ 儲存失敗: ' + (json.error || 'Unknown'));
         }
     } catch (e) {
-        alert('連線錯誤：' + e.message);
+        if (!isSilent) alert('連線錯誤：' + e.message);
     } finally {
-        btn.innerText = originalText;
-        btn.disabled = false;
+        if (btn && !isSilent) {
+            btn.innerText = originalText;
+            btn.disabled = false;
+        }
     }
 }
 
@@ -1144,37 +1171,43 @@ function renderCommunityStats(g) {
 }
 
 function loginToSeeStats() {
-    localStorage.setItem('pending_stats_open', 'true');
-    savePendingState(); // Collect current inputs just in case
-    liff.login();
+    saveAndLogin();
 }
 
 // --- Persistence Helpers ---
 function saveAndLogin() {
-    // Track Lead
-    if (typeof fbq === 'function') fbq('track', 'Lead');
+    try {
+        // Track Lead
+        if (typeof fbq === 'function') fbq('track', 'Lead');
 
-    savePendingState();
+        savePendingState();
 
-    // 1. Get current State params
-    const state = JSON.parse(localStorage.getItem('pending_sim_state') || '{}');
-    const simParams = encodeStateToParams(state);
+        // 1. Get current State params
+        const state = JSON.parse(localStorage.getItem('pending_sim_state') || '{}');
+        const simParams = encodeStateToParams(state);
 
-    // 2. Get current Attribution params (fbclid, utm_*, etc.)
-    const currentUrlParams = new URLSearchParams(window.location.search);
-    currentUrlParams.forEach((val, key) => {
-        // Prevent overwriting sim params if collision (unlikely)
-        if (!simParams.has(key)) {
-            simParams.append(key, val);
+        // 2. Get current Attribution params
+        const currentUrlParams = new URLSearchParams(window.location.search);
+        currentUrlParams.forEach((val, key) => {
+            if (!simParams.has(key)) {
+                simParams.append(key, val);
+            }
+        });
+
+        // 3. Construct LIFF Deep Link with Intent
+        if (!simParams.has('o')) {
+            simParams.append('o', '1');
         }
-    });
 
-    // 3. Construct LIFF Deep Link
-    // Format: https://liff.line.me/{LIFF_ID}/?param=val...
-    const liffBase = `https://liff.line.me/${LIFF_ID}/`;
-    const deepLink = liffBase + '?' + simParams.toString();
+        const liffBase = `https://liff.line.me/${LIFF_ID}/`;
+        const deepLink = liffBase + '?' + simParams.toString();
 
-    window.location.href = deepLink;
+        window.location.href = deepLink;
+
+    } catch (e) {
+        console.error('Login Redirect Failed:', e);
+        alert('登入跳轉失敗，請稍後再試。');
+    }
 }
 window.saveAndLogin = saveAndLogin;
 
@@ -1308,8 +1341,8 @@ function restorePendingState() {
             const currentUrl = new URL(window.location.href);
             const keepParams = new URLSearchParams();
 
-            // Whitelist attribution params to keep
-            const attributionKeys = ['fbclid', 'gclid', 'utm_source', 'utm_medium', 'utm_campaign', 'utm_term', 'utm_content', 'avg'];
+            // Whitelist attribution params to keep + 'o' (open intent)
+            const attributionKeys = ['fbclid', 'gclid', 'utm_source', 'utm_medium', 'utm_campaign', 'utm_term', 'utm_content', 'avg', 'o'];
 
             currentUrl.searchParams.forEach((val, key) => {
                 if (attributionKeys.includes(key)) {
