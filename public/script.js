@@ -4,6 +4,9 @@
  * Handles Dual Independent Slider Groups, Monthly Compounding, and Wealth Gap.
  */
 
+// Constants
+const LIFF_ID = '1656872168-iM0I3QG0';
+
 // Wait for DOM
 document.addEventListener('DOMContentLoaded', () => {
     initInflationCalc();
@@ -490,13 +493,33 @@ function initSimulator() {
 
         const feedbackConfig = CONFIG.SCENARIO_TEXT[scenarioKey];
 
-        // Render HTML - Restore real feedback
-        outputs.feedback.innerHTML = `
-            <h4 style="margin-bottom:0.5rem; color:${feedbackConfig.TITLE.includes('警告') ? 'var(--danger)' : 'var(--white)'}">
-                ${feedbackConfig.TITLE}
-            </h4>
-            ${feedbackConfig.HTML}
-        `;
+        // Render HTML - Gated Logic
+        const isLoggedIn = liff.isLoggedIn() || localStorage.getItem('line_user_id');
+
+        if (isLoggedIn) {
+            // Unlocked: Show full content
+            outputs.feedback.className = 'sim-feedback'; // Reset class
+            outputs.feedback.innerHTML = `
+                <h4 style="margin-bottom:0.5rem; color:${feedbackConfig.TITLE.includes('警告') ? 'var(--danger)' : 'var(--white)'}">
+                    ${feedbackConfig.TITLE}
+                </h4>
+                ${feedbackConfig.HTML}
+            `;
+        } else {
+            // Locked: Show title + blurred content + CTA
+            outputs.feedback.className = 'sim-feedback feedback-locked';
+            outputs.feedback.innerHTML = `
+                <div class="analysis-content">
+                    <h4 style="margin-bottom:0.5rem; color:${feedbackConfig.TITLE.includes('警告') ? 'var(--danger)' : 'var(--white)'}">
+                        ${feedbackConfig.TITLE}
+                    </h4>
+                    ${feedbackConfig.HTML}
+                </div>
+                <button class="lock-overlay-btn" onclick="saveAndLogin()">
+                     🔒 登入解鎖完整分析報告
+                </button>
+            `;
+        }
         outputs.feedback.style.color = '#e2e8f0';
 
         // 4. Update Chart (Heavy)
@@ -554,7 +577,6 @@ function initSimulator() {
     updateUI();
 }
 
-// --- Part 3: Embed & Fullscreen Logic ---
 // --- Part 3: Embed & Fullscreen Logic ---
 function initEmbedMode() {
     const urlParams = new URLSearchParams(window.location.search);
@@ -687,6 +709,8 @@ function bindUIEvents() {
         if (!LIFF_READY) return alert('系統初始化中，請稍候...');
         if (!liff.isLoggedIn()) {
             savePendingState();
+            // Track Lead event
+            if (typeof fbq === 'function') fbq('track', 'Lead');
             liff.login();
         }
     });
@@ -707,16 +731,26 @@ function bindUIEvents() {
     });
 
     // 2. Modal Close Actions
-    const closeStats = () => document.getElementById('stats-modal').classList.add('hidden');
-    document.getElementById('btn-close-stats').addEventListener('click', closeStats);
+    const closeStats = () => {
+        const modal = document.getElementById('stats-modal');
+        if (modal) modal.classList.add('hidden');
+    };
+    const btnCloseStats = document.getElementById('btn-close-stats');
+    if (btnCloseStats) btnCloseStats.addEventListener('click', closeStats);
 
     const footerBtn = document.getElementById('btn-close-stats-footer');
     if (footerBtn) footerBtn.addEventListener('click', closeStats);
 
     const overlay = document.getElementById('stats-modal');
-    overlay.addEventListener('click', (e) => {
-        if (e.target === overlay) closeStats();
-    });
+    if (overlay) {
+        overlay.addEventListener('click', (e) => {
+            if (e.target === overlay) closeStats();
+        });
+    }
+
+    // 3. Ad Page Specific Actions (Removed)
+    // The lock button in feedback uses direct onclick="saveAndLogin()"
+    // which handles the flow correctly.
 }
 
 async function initAuth() {
@@ -783,6 +817,7 @@ async function handleLoggedInUser() {
             localStorage.setItem('line_user_id', profile.userId);
             localStorage.setItem('line_user_name', profile.displayName);
             localStorage.setItem('line_user_pic', profile.pictureUrl);
+
             updateAuthState(true);
         } else {
             throw new Error(data.error || '後端認證失敗');
@@ -810,23 +845,28 @@ function updateAuthState(isLoggedIn) {
     const userInfo = document.getElementById('user-info');
     const btnSave = document.getElementById('btn-save-sim');
 
+    // Safe check if elements exist (might be absent on ad.html)
     if (userId) {
         // Logged In
-        btnLogin.classList.add('hidden');
-        userInfo.classList.remove('hidden');
-        document.getElementById('user-name').innerText = userName;
-        if (userPic && userPic !== 'undefined') {
-            document.getElementById('user-pic').src = userPic;
-        } else {
-            document.getElementById('user-pic').src = 'https://ui-avatars.com/api/?name=' + userName;
+        if (btnLogin) btnLogin.classList.add('hidden');
+        if (userInfo) userInfo.classList.remove('hidden');
+        if (document.getElementById('user-name')) document.getElementById('user-name').innerText = userName;
+
+        const picEl = document.getElementById('user-pic');
+        if (picEl) {
+            if (userPic && userPic !== 'undefined') {
+                picEl.src = userPic;
+            } else {
+                picEl.src = 'https://ui-avatars.com/api/?name=' + userName;
+            }
         }
 
-        btnSave.classList.remove('hidden');
+        if (btnSave) btnSave.classList.remove('hidden');
     } else {
         // Guest
-        btnLogin.classList.remove('hidden');
-        userInfo.classList.add('hidden');
-        btnSave.classList.add('hidden');
+        if (btnLogin) btnLogin.classList.remove('hidden');
+        if (userInfo) userInfo.classList.add('hidden');
+        if (btnSave) btnSave.classList.add('hidden');
     }
 }
 
@@ -1083,8 +1123,31 @@ function loginToSeeStats() {
 
 // --- Persistence Helpers ---
 function saveAndLogin() {
+    // Track Lead
+    if (typeof fbq === 'function') fbq('track', 'Lead');
+
     savePendingState();
-    liff.login();
+
+    // 1. Get current State params
+    const state = JSON.parse(localStorage.getItem('pending_sim_state') || '{}');
+    const simParams = encodeStateToParams(state);
+
+    // 2. Get current Attribution params (fbclid, utm_*, etc.)
+    const currentUrlParams = new URLSearchParams(window.location.search);
+    currentUrlParams.forEach((val, key) => {
+        // Prevent overwriting sim params if collision (unlikely)
+        if (!simParams.has(key)) {
+            simParams.append(key, val);
+        }
+    });
+
+    // 3. Construct LIFF Deep Link
+    // Format: https://liff.line.me/{LIFF_ID}/?param=val...
+    const liffBase = `https://liff.line.me/${LIFF_ID}/`;
+    const deepLink = liffBase + '?' + simParams.toString();
+
+    // 4. Redirect
+    window.location.href = deepLink;
 }
 
 function savePendingState() {
@@ -1114,12 +1177,77 @@ function savePendingState() {
     }
 }
 
+function encodeStateToParams(state) {
+    const p = new URLSearchParams();
+    // Compact Mapping
+    if (state.initial) p.set('i', state.initial);
+    if (state.monthly) p.set('m', state.monthly);
+
+    if (state.cashA) p.set('ac', state.cashA);
+    if (state.etfA) p.set('ae', state.etfA);
+    if (state.reA) p.set('ar', state.reA);
+    if (state.activeA) p.set('aa', state.activeA);
+
+    if (state.cashB) p.set('bc', state.cashB);
+    if (state.etfB) p.set('be', state.etfB);
+    if (state.reB) p.set('br', state.reB);
+    if (state.activeB) p.set('ba', state.activeB);
+
+    // Inflation
+    if (state.infItem) p.set('ii', state.infItem);
+    if (state.infPriceOld) p.set('io', state.infPriceOld);
+    if (state.infPriceNow) p.set('in', state.infPriceNow);
+
+    return p;
+}
+
+function decodeStateFromParams(p) {
+    return {
+        initial: p.get('i'),
+        monthly: p.get('m'),
+
+        cashA: p.get('ac'),
+        etfA: p.get('ae'),
+        reA: p.get('ar'),
+        activeA: p.get('aa'),
+
+        cashB: p.get('bc'),
+        etfB: p.get('be'),
+        reB: p.get('br'),
+        activeB: p.get('ba'),
+
+        infItem: p.get('ii'),
+        infPriceOld: p.get('io'),
+        infPriceNow: p.get('in')
+    };
+}
+
 function restorePendingState() {
-    const saved = localStorage.getItem('pending_sim_state');
-    if (!saved) return;
+    let state = null;
+    let source = '';
+
+    // 1. Try URL Params (Priority: Deep Link / Share)
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.has('i')) {
+        // High confidence this is a deep link
+        state = decodeStateFromParams(urlParams);
+        source = 'url';
+    }
+
+    // 2. Try LocalStorage (Fallback)
+    if (!state) {
+        const saved = localStorage.getItem('pending_sim_state');
+        if (saved) {
+            try {
+                state = JSON.parse(saved);
+                source = 'local';
+            } catch (e) { }
+        }
+    }
+
+    if (!state) return;
 
     try {
-        const state = JSON.parse(saved);
         if (state.initial) document.getElementById('inp-initial').value = state.initial;
         if (state.monthly) document.getElementById('inp-monthly').value = state.monthly;
 
@@ -1144,12 +1272,37 @@ function restorePendingState() {
         const event = new Event('input', { bubbles: true });
         document.getElementById('slider-b-cash').dispatchEvent(event);
         document.getElementById('slider-a-cash').dispatchEvent(event);
-        document.getElementById('calc-price-now').dispatchEvent(event);
+        const calcNow = document.getElementById('calc-price-now');
+        if (calcNow) calcNow.dispatchEvent(event);
+
+        // Clean up URL if restored from URL
+        if (source === 'url') {
+            const currentUrl = new URL(window.location.href);
+            const keepParams = new URLSearchParams();
+
+            // Whitelist attribution params to keep
+            const attributionKeys = ['fbclid', 'gclid', 'utm_source', 'utm_medium', 'utm_campaign', 'utm_term', 'utm_content', 'avg'];
+
+            currentUrl.searchParams.forEach((val, key) => {
+                if (attributionKeys.includes(key)) {
+                    keepParams.append(key, val);
+                }
+            });
+
+            const newSearch = keepParams.toString();
+            const cleanUrl = currentUrl.pathname + (newSearch ? '?' + newSearch : '');
+
+            window.history.replaceState({ path: cleanUrl }, '', cleanUrl);
+
+            // Re-save to local for consistency
+            localStorage.setItem('pending_sim_state', JSON.stringify(state));
+        }
 
     } catch (e) {
         console.error('Restore State Failed:', e);
     } finally {
-        localStorage.removeItem('pending_sim_state');
+        // Only clear if we actually restored something successfully
+        // localStorage.removeItem('pending_sim_state');
     }
 }
 
