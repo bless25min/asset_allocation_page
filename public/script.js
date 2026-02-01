@@ -709,10 +709,7 @@ function bindUIEvents() {
     document.getElementById('btn-login').addEventListener('click', () => {
         if (!LIFF_READY) return alert('系統初始化中，請稍候...');
         if (!liff.isLoggedIn()) {
-            savePendingState();
-            // Track Lead event
-            if (typeof fbq === 'function') fbq('track', 'Lead');
-            liff.login();
+            saveAndLogin();
         }
     });
 
@@ -1147,9 +1144,9 @@ function saveAndLogin() {
     const liffBase = `https://liff.line.me/${LIFF_ID}/`;
     const deepLink = liffBase + '?' + simParams.toString();
 
-    // 4. Redirect
     window.location.href = deepLink;
 }
+window.saveAndLogin = saveAndLogin;
 
 function savePendingState() {
     try {
