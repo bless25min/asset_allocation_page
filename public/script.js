@@ -700,7 +700,8 @@ function initEmbedMode() {
 }
 
 // --- Part 4: Auth & Data Logic (LIFF V2) ---
-const LIFF_ID = '1656872168-iM0I3QG0';
+// LIFF_ID moved to global constants at top
+
 let LIFF_READY = false;
 
 function bindUIEvents() {
