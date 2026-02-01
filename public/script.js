@@ -706,12 +706,15 @@ let LIFF_READY = false;
 
 function bindUIEvents() {
     // 1. Auth Actions
-    document.getElementById('btn-login').addEventListener('click', () => {
-        if (!LIFF_READY) return alert('系統初始化中，請稍候...');
-        if (!liff.isLoggedIn()) {
-            saveAndLogin();
-        }
-    });
+    const btnLogin = document.getElementById('btn-login');
+    if (btnLogin) {
+        btnLogin.addEventListener('click', () => {
+            if (!LIFF_READY) return alert('系統初始化中，請稍候...');
+            if (!liff.isLoggedIn()) {
+                saveAndLogin();
+            }
+        });
+    }
 
     // 2. Dynamic Elements Delegation (Lock Button)
     document.body.addEventListener('click', (e) => {
@@ -722,20 +725,29 @@ function bindUIEvents() {
         }
     });
 
-    document.getElementById('btn-logout').addEventListener('click', () => {
-        if (!LIFF_READY) return alert('系統初始化中...');
-        logout();
-    });
+    const btnLogout = document.getElementById('btn-logout');
+    if (btnLogout) {
+        btnLogout.addEventListener('click', () => {
+            if (!LIFF_READY) return alert('系統初始化中...');
+            logout();
+        });
+    }
 
-    document.getElementById('btn-save-sim').addEventListener('click', () => {
-        if (!LIFF_READY) return alert('請稍候，系統認證中...');
-        saveSimulation();
-    });
+    const btnSave = document.getElementById('btn-save-sim');
+    if (btnSave) {
+        btnSave.addEventListener('click', () => {
+            if (!LIFF_READY) return alert('請稍候，系統認證中...');
+            saveSimulation();
+        });
+    }
 
-    document.getElementById('btn-view-stats').addEventListener('click', () => {
-        if (!LIFF_READY) return alert('統計功能載入中，請稍候...');
-        loadStats();
-    });
+    const btnStats = document.getElementById('btn-view-stats');
+    if (btnStats) {
+        btnStats.addEventListener('click', () => {
+            if (!LIFF_READY) return alert('統計功能載入中，請稍候...');
+            loadStats();
+        });
+    }
 
     // 2. Modal Close Actions
     const closeStats = () => {
@@ -1052,57 +1064,66 @@ async function loadStats() {
 }
 
 function switchStatsGroup(groupKey) {
-    if (!allStatsData) return;
+    if (!allStatsData && groupKey !== 'my_analysis') return;
 
-    // Update Tab Active State
-    const buttons = document.querySelectorAll('#stats-filters button');
-    buttons.forEach(btn => {
-        btn.classList.toggle('active', btn.getAttribute('onclick').includes(`'${groupKey}'`));
+    // UI Toggle
+    const tabs = document.querySelectorAll('.stats-tabs button');
+    tabs.forEach(btn => {
+        if (btn.innerText.includes('我的') && groupKey === 'my_analysis') btn.classList.add('active');
+        else if (btn.onclick.toString().includes(groupKey)) btn.classList.add('active');
+        else btn.classList.remove('active');
     });
 
-    const g = allStatsData.find(item => item.key === groupKey);
-    const aBody = document.getElementById('stats-a-body');
-    const bBody = document.getElementById('stats-b-body');
-    const infBox = document.getElementById('stats-inf-box');
+    const myAnalysisBox = document.getElementById('my-analysis-container');
+    const communityGrid = document.getElementById('community-stats-grid');
 
-    if (!g || g.count === 0) {
-        const emptyMsg = '<tr><td colspan="2">尚無數據</td></tr>';
-        aBody.innerHTML = emptyMsg;
-        bBody.innerHTML = emptyMsg;
-        infBox.innerHTML = '<p>尚無數據</p>';
+    // Case 1: My Analysis
+    if (groupKey === 'my_analysis') {
+        if (myAnalysisBox) myAnalysisBox.style.display = 'block';
+        if (communityGrid) communityGrid.style.display = 'none';
+
+        // Inject current analysis if available
+        const currentAnalysisHTML = document.getElementById('out-feedback').innerHTML;
+        // Strip blurred/locked classes if any (though logic should unlock before opening)
+        if (myAnalysisBox) {
+            myAnalysisBox.innerHTML = `
+                <h4 style="color:#fff; margin-bottom:1rem;">💡 您的專屬資產診斷</h4>
+                <div class="sim-feedback" style="background:transparent; padding:0;">
+                    ${currentAnalysisHTML.replace('feedback-locked', '')}
+                </div>
+            `;
+            // Remove lock button from clone if exists
+            const lockBtn = myAnalysisBox.querySelector('.lock-overlay-btn');
+            if (lockBtn) lockBtn.remove();
+
+            const blurredContent = myAnalysisBox.querySelector('.analysis-content');
+            if (blurredContent) {
+                blurredContent.style.filter = 'none';
+                blurredContent.style.opacity = '1';
+                blurredContent.style.pointerEvents = 'auto';
+            }
+        }
         return;
     }
 
-    // Render Table A (Current)
-    if (!g.a || g.a.count === 0) {
-        aBody.innerHTML = '<tr><td colspan="2" style="text-align:center; padding: 2rem; color: #64748b;">尚無有效配置數據</td></tr>';
-    } else {
-        aBody.innerHTML = `
-            <tr><td>現金/定存</td><td>${g.a.cash}%</td></tr>
-            <tr><td>指數/ETF</td><td>${g.a.etf}%</td></tr>
-            <tr><td>房地產</td><td>${g.a.re}%</td></tr>
-            <tr><td>主動投資</td><td>${g.a.active}%</td></tr>
-            <tr class="accent-row"><td>平均預期報酬</td><td>${g.a.avgRet}%</td></tr>
-        `;
-    }
+    // Case 2: Community Stats
+    if (myAnalysisBox) myAnalysisBox.style.display = 'none';
+    if (communityGrid) communityGrid.style.display = 'grid';
 
-    // Render Table B (Target)
-    if (!g.b || g.b.count === 0) {
-        bBody.innerHTML = '<tr><td colspan="2" style="text-align:center; padding: 2rem; color: #64748b;">尚無有效配置數據</td></tr>';
-    } else {
-        bBody.innerHTML = `
-            <tr><td>現金/定存</td><td>${g.b.cash}%</td></tr>
-            <tr><td>指數/ETF</td><td>${g.b.etf}%</td></tr>
-            <tr><td>房地產</td><td>${g.b.re}%</td></tr>
-            <tr><td>主動投資</td><td>${g.b.active}%</td></tr>
-            <tr class="accent-row"><td>平均期望報酬</td><td>${g.b.avgRet}%</td></tr>
-        `;
-    }
+    const g = allStatsData.find(x => x.key === groupKey);
+    if (!g) return;
 
-    // Render Inflation Feed
-    if (!g.inf.feed || g.inf.feed.length === 0) {
-        infBox.innerHTML = '<div class="inf-empty">尚無通膨觀測數據</div>';
-    } else {
+    // ... existing community stats rendering ...
+    renderCommunityStats(g);
+}
+
+function renderCommunityStats(g) {
+    const infBox = document.getElementById('stats-inf-box');
+    const tbodyA = document.getElementById('stats-a-body');
+    const tbodyB = document.getElementById('stats-b-body');
+
+    // 1. Inflation Feed
+    if (infBox && g.inf.feed) {
         const feedHtml = g.inf.feed.map(item => `
             <div class="inf-item-card">
                 <div class="inf-item-info">

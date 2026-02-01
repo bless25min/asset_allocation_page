@@ -320,12 +320,18 @@
             <div class="stats-content">
                 <!-- Stats Groups Filter -->
                 <div id="stats-filters" class="stats-tabs">
-                    <button class="active" onclick="switchStatsGroup('small')">小資族</button>
+                    <button class="active" onclick="switchStatsGroup('my_analysis')">我的分析</button>
+                    <button onclick="switchStatsGroup('small')">小資族</button>
                     <button onclick="switchStatsGroup('middle')">中產階級</button>
                     <button onclick="switchStatsGroup('large')">富裕層</button>
                 </div>
 
-                <div class="stats-content-grid">
+                <!-- My Analysis Content (Hidden by default or shown on tab switch) -->
+                <div id="my-analysis-container" class="my-analysis-box stats-section">
+                    <!-- JS Inject Analysis Here -->
+                </div>
+
+                <div class="stats-content-grid" id="community-stats-grid" style="display:none;">
                     <!-- Section 1: Inflation Observation (First) -->
                     <div class="stats-section">
                         <h5>🔥 社群通膨觀察</h5>
