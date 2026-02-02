@@ -15,6 +15,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     console.log('DOMContentLoaded Triggered');
     try {
         await initSimulator();
+        initInflationCalc(); // [Fix] Initialize Calculator
         bindUIEvents();
         console.log('UI Events Bound Successfully');
 
@@ -42,6 +43,8 @@ function initInflationCalc() {
         const pNow = parseFloat(inputs.nowPrice.value);
         const years = 10;
 
+        console.log('[Inflation Calc] Triggered:', pOld, '->', pNow);
+
         if (pOld > 0 && pNow > 0) {
             const cagr = (Math.pow(pNow / pOld, 1 / years) - 1) * 100;
             const cagrFixed = cagr.toFixed(2);
@@ -51,13 +54,30 @@ function initInflationCalc() {
 
             CONFIG.USER_INPUTS.calculatedInflation = cagr;
             document.dispatchEvent(new Event('inflationUpdated'));
+        } else {
+            console.warn('[Inflation Calc] Invalid Inputs');
+            if (!inputs.oldPrice.value || !inputs.nowPrice.value) {
+                alert('請輸入完整的價格資訊');
+            }
         }
     };
 
     if (btn) btn.addEventListener('click', performCalc);
 
     // [Fix] Listen for Restoration Event to auto-calc inflation
+    // [Fix] Listen for Restoration Event to auto-calc inflation
     document.addEventListener('stateRestored', () => {
+        // [UX Logic] Only auto-calc if the values are NOT defaults.
+        // We don't want to show the result box if the user hasn't touched these inputs yet.
+        const isDefaultOld = inputs.oldPrice.value == 70;
+        const isDefaultNow = inputs.nowPrice.value == 100;
+        const isItemEmpty = !inputs.item.value.trim();
+
+        if (isDefaultOld && isDefaultNow && isItemEmpty) {
+            console.log('[Inflation] Skipping auto-calc for default values.');
+            return;
+        }
+
         // Short delay to ensure value injection
         setTimeout(performCalc, 50);
     });
@@ -1254,7 +1274,7 @@ function renderCommunityStats(g) {
         const feedHtml = g.inf.feed.map(item => `
             <div class="inf-item-card">
                 <div class="inf-item-info">
-                    <span class="inf-item-name">${item.name}</span>
+                    <span class="inf-item-name">${escapeHtml(item.name || '')}</span>
                     <span class="inf-item-prices">${item.old} → ${item.now}</span>
                 </div>
                 <div class="inf-item-rate">
@@ -1268,7 +1288,44 @@ function renderCommunityStats(g) {
                                 Based on ${g.inf.count} community reports
                             </div>`;
     }
+
+    // 2. Allocation Tables
+    const renderRow = (label, val) => `
+        <tr>
+            <td>${label}</td>
+            <td class="text-right font-bold">${val}%</td>
+        </tr>
+    `;
+
+    if (tbodyA && g.avgA) {
+        tbodyA.innerHTML =
+            renderRow('現金 (Cash)', g.avgA.cash) +
+            renderRow('指數 (ETF)', g.avgA.etf) +
+            renderRow('房產 (RE)', g.avgA.re) +
+            renderRow('主動 (Active)', g.avgA.active);
+    }
+
+    if (tbodyB && g.avgB) {
+        tbodyB.innerHTML =
+            renderRow('現金 (Cash)', g.avgB.cash) +
+            renderRow('指數 (ETF)', g.avgB.etf) +
+            renderRow('房產 (RE)', g.avgB.re) +
+            renderRow('主動 (Active)', g.avgB.active);
+    }
 }
+
+// XSS Protection Helper
+function escapeHtml(text) {
+    if (!text) return text;
+    return text
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#039;");
+}
+
+
 
 function loginToSeeStats() {
     console.log('loginToSeeStats called via Inline Click');
