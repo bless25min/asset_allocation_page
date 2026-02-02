@@ -4,16 +4,26 @@
  * Handles Dual Independent Slider Groups, Monthly Compounding, and Wealth Gap.
  */
 
-// Constants
+console.log('Script.js Loading...');
+
+// --- Global Config & State ---
 const LIFF_ID = '1656872168-iM0I3QG0';
+const LIFF_URL = `https://liff.line.me/${LIFF_ID}`;
 
 // Wait for DOM
-document.addEventListener('DOMContentLoaded', () => {
-    initInflationCalc();
-    initSimulator();
-    initEmbedMode();
-    bindUIEvents(); // Bind immediately
-    initAuth();     // Start LIFF in background
+document.addEventListener('DOMContentLoaded', async () => {
+    console.log('DOMContentLoaded Triggered');
+    try {
+        await initSimulator();
+        bindUIEvents();
+        console.log('UI Events Bound Successfully');
+
+        // Auth Init
+        initAuth();
+    } catch (e) {
+        console.error('CRITICAL INIT FAILURE:', e);
+        alert('系統載入失敗，請檢查網路或重新整理。');
+    }
 });
 
 // --- Part 1: Inflation Calculator ---
@@ -56,6 +66,11 @@ function initSimulator() {
         rateA: document.getElementById('val-rate-a'), // In Panel A Header
         rateB: document.getElementById('val-rate-b')  // In Panel B Header
     };
+
+    if (!finInputs.initial || !finInputs.monthly) {
+        console.warn('Simulator Inputs not found. initSimulator aborted.');
+        return;
+    }
 
     // --- Dual Slider Groups ---
     const groups = {
@@ -721,13 +736,12 @@ function bindUIEvents() {
     document.body.addEventListener('click', (e) => {
         if (e.target.matches('.lock-overlay-btn') || e.target.closest('.lock-overlay-btn')) {
             console.log('[Debug] Lock Button Clicked via Delegation');
-            // Ensure login trigger
-            if (!LIFF_READY) {
-                console.warn('[Debug] LIFF Not Ready');
-                return alert('系統初始化中，請稍候...');
+            // Check existing saveAndLogin function
+            if (typeof window.saveAndLogin === 'function') {
+                window.saveAndLogin();
+            } else {
+                console.error('saveAndLogin not found');
             }
-            console.log('[Debug] Calling saveAndLogin');
-            window.saveAndLogin();
         }
     });
 
@@ -817,6 +831,8 @@ async function initAuth() {
         sessionStorage.removeItem('login_attempted');
     } catch (error) {
         console.error('LIFF Init Failed:', error);
+        // Fallback: Restore state so user can still play simulator
+        restorePendingState();
         alert('LINE 登入初始化失敗 (Error: ' + (error.message || error) + ')');
     }
 }
@@ -1110,16 +1126,19 @@ function switchStatsGroup(groupKey) {
         if (communityGrid) communityGrid.style.display = 'none';
 
         // Inject current analysis if available
-        const currentAnalysisHTML = document.getElementById('out-feedback').innerHTML;
-        // Strip blurred/locked classes if any (though logic should unlock before opening)
+        // [Fix] Use 'sim-feedback' (detailed) instead of 'out-feedback' (summary)
+        const detailedFeedbackDiv = document.getElementById('sim-feedback');
+        const contentHTML = detailedFeedbackDiv ? detailedFeedbackDiv.innerHTML : '<p>無分析數據，請試著調整配置。</p>';
+
         if (myAnalysisBox) {
             myAnalysisBox.innerHTML = `
                 <h4 style="color:#fff; margin-bottom:1rem;">💡 您的專屬資產診斷</h4>
-                <div class="sim-feedback" style="background:transparent; padding:0;">
-                    ${currentAnalysisHTML.replace('feedback-locked', '')}
+                <div class="sim-feedback" style="background:transparent; padding:0; display:block;">
+                    ${contentHTML}
                 </div>
             `;
-            // Remove lock button from clone if exists
+
+            // Clean up any lock UI artifacts just in case
             const lockBtn = myAnalysisBox.querySelector('.lock-overlay-btn');
             if (lockBtn) lockBtn.remove();
 
