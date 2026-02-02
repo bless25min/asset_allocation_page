@@ -1078,8 +1078,13 @@ async function loadStats() {
         const grid = document.querySelector('.stats-content-grid');
         const cta = document.getElementById('stats-cta-link'); // Added
         if (cta) cta.classList.add('hidden'); // Added
+
         if (filters) filters.style.display = 'none';
-        if (grid) grid.innerHTML = `
+
+        // [Fix] Ensure the container is visible so users can see the Login Prompt
+        if (grid) {
+            grid.style.display = 'block';
+            grid.innerHTML = `
             <div style="grid-column: 1/-1; padding: 2rem 1rem; text-align:center;">
                 <div style="margin-bottom: 1.5rem;">
                     <img src="https://upload.wikimedia.org/wikipedia/commons/4/41/LINE_logo.svg" alt="LINE" width="40" style="margin-bottom:1rem;">
@@ -1093,8 +1098,10 @@ async function loadStats() {
                     使用 LINE 帳號登入
                 </button>
             </div>
+            </div>
         `;
-        return;
+        } // Close grid check
+        return; // Always return here for Guest view
     }
 
     try {
@@ -1135,7 +1142,14 @@ async function loadStats() {
         document.getElementById('stats-filters').style.display = 'flex';
         const cta = document.getElementById('stats-cta-link'); // Added
         if (cta) cta.classList.remove('hidden'); // Show now
-        switchStatsGroup('small');
+
+        // [UX] If we have deep link intent, show 'My Analysis' first.
+        const urlParams = new URLSearchParams(window.location.search);
+        if (urlParams.has('o')) {
+            switchStatsGroup('my_analysis');
+        } else {
+            switchStatsGroup('small');
+        }
 
     } catch (e) {
         console.error(e);
