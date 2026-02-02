@@ -850,6 +850,23 @@ async function initAuth() {
             }
         } else {
             // [Guest Path]
+
+            // [Production Path] External Browser Force Auth
+            if (hasIntent && !sessionStorage.getItem('auth_redirecting')) {
+                console.log('Intent present but guest. Triggering standard OAuth...');
+                sessionStorage.setItem('auth_redirecting', 'true');
+                try {
+                    liff.login({ redirectUri: window.location.href });
+                } catch (e) {
+                    console.error('LIFF Login Failed:', e);
+                    alert('登入啟動失敗，請確認您的網址是否在 LIFF Allowlist 中');
+                }
+                return;
+            }
+
+            // Clean flag if we are just a guest without intent
+            sessionStorage.removeItem('auth_redirecting');
+
             updateAuthState(false);
             restorePendingState();
         }
@@ -1061,14 +1078,21 @@ async function loadStats() {
     modal.classList.remove('hidden');
 
     // 0. Pre-login Anonymous Storage (Zero Data Loss Strategy)
+    // 0. Pre-login Anonymous Storage (Zero Data Loss Strategy)
     try {
         if (window.location.protocol !== 'file:') {
             const payload = gatherSimulationData();
-            await fetch('/api/simulation', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(payload)
-            });
+
+            // [Data Quality] Skip saving if it's purely default state (Pollution Prevention)
+            if (isDefaultState(payload)) {
+                console.log('[Analytics] Skipping anonymous save: User kept default config.');
+            } else {
+                await fetch('/api/simulation', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+            }
         }
     } catch (e) {
         console.warn('Anonymous Save Failed (Ignoring):', e);
@@ -1288,7 +1312,8 @@ function saveAndLogin() {
 
         console.log('[Debug] Redirecting to:', deepLink);
 
-        window.location.href = deepLink;
+        // Use assign for reliable navigation
+        window.location.assign(deepLink);
 
     } catch (e) {
         console.error('Login Redirect Failed:', e);
@@ -1329,24 +1354,30 @@ function savePendingState() {
 
 function encodeStateToParams(state) {
     const p = new URLSearchParams();
+
+    // Helper to add if valid number (including 0)
+    const add = (k, v) => {
+        if (v !== undefined && v !== null && v !== '') p.set(k, v);
+    };
+
     // Compact Mapping
-    if (state.initial) p.set('i', state.initial);
-    if (state.monthly) p.set('m', state.monthly);
+    add('i', state.initial);
+    add('m', state.monthly);
 
-    if (state.cashA) p.set('ac', state.cashA);
-    if (state.etfA) p.set('ae', state.etfA);
-    if (state.reA) p.set('ar', state.reA);
-    if (state.activeA) p.set('aa', state.activeA);
+    add('ac', state.cashA);
+    add('ae', state.etfA);
+    add('ar', state.reA);
+    add('aa', state.activeA);
 
-    if (state.cashB) p.set('bc', state.cashB);
-    if (state.etfB) p.set('be', state.etfB);
-    if (state.reB) p.set('br', state.reB);
-    if (state.activeB) p.set('ba', state.activeB);
+    add('bc', state.cashB);
+    add('be', state.etfB);
+    add('br', state.reB);
+    add('ba', state.activeB);
 
     // Inflation
-    if (state.infItem) p.set('ii', state.infItem);
-    if (state.infPriceOld) p.set('io', state.infPriceOld);
-    if (state.infPriceNow) p.set('in', state.infPriceNow);
+    add('ii', state.infItem);
+    add('io', state.infPriceOld);
+    add('in', state.infPriceNow);
 
     return p;
 }
@@ -1448,13 +1479,22 @@ function restorePendingState() {
             // Re-save to local for consistency
             localStorage.setItem('pending_sim_state', JSON.stringify(state));
         }
-
     } catch (e) {
         console.error('Restore State Failed:', e);
-    } finally {
-        // Only clear if we actually restored something successfully
-        // localStorage.removeItem('pending_sim_state');
     }
 }
 
+// --- Helper: Check for Default Data ---
+function isDefaultState(payload) {
+    if (!payload || !payload.allocationData) return true;
+    const a = payload.allocationData.panelA;
+    const b = payload.allocationData.panelB;
+
+    // Defined Default: 100% Cash in both panels
+    // This is the initial state before user touches any slider
+    const isDefaultA = (a.cash === 100 && a.etf === 0 && a.re === 0 && a.active === 0);
+    const isDefaultB = (b.cash === 100 && b.etf === 0 && b.re === 0 && b.active === 0);
+
+    return isDefaultA && isDefaultB;
+}
 
