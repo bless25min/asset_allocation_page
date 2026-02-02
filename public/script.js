@@ -848,22 +848,21 @@ async function initAuth() {
             if (localStorage.getItem('line_user_id')) {
                 saveSimulation(true);
             }
-
-            // [UX] Success Path: Auto-open Stats if intent present
-            if (hasIntent) {
-                setTimeout(loadStats, 800);
-            }
         } else {
             // [Guest Path]
             updateAuthState(false);
             restorePendingState();
-
-            // [PASSIVE MODE] 
-            // We DO NOT force login here, even if 'o=1' exists.
-            // If user is guest with 'o=1', it means they likely cancelled the login
-            // or are just visiting a shared link.
-            // We wait for them to click the button manually.
         }
+
+        // [UX Fix] ALWAYS Auto-open Stats if intent present
+        // If logged in -> Shows Data
+        // If guest (login failed/local dev) -> Shows Login Prompt
+        if (hasIntent) {
+            console.log('Intent detected (o=1), auto-opening stats...');
+            setTimeout(loadStats, 800);
+        }
+
+        // Cleanup legacy flags
 
         // Cleanup legacy flags
         localStorage.removeItem('pending_stats_open');
@@ -1260,11 +1259,16 @@ function saveAndLogin() {
         // Track Lead
         if (typeof fbq === 'function') fbq('track', 'Lead');
 
-        savePendingState();
+        // [Fix] Save AND Return state object directly to ensure freshness
+        // This avoids race conditions reading back from LocalStorage immediately
+        const state = savePendingState();
 
-        // 1. Get current State params
-        const state = JSON.parse(localStorage.getItem('pending_sim_state') || '{}');
-        const simParams = encodeStateToParams(state);
+        // Debug: Check what was saved
+        console.log('[Debug] In-Memory State for URL:', state);
+
+        // 1. Convert to Params
+        const simParams = encodeStateToParams(state || {});
+        console.log('[Debug] Encoded Params:', simParams.toString());
 
         // 2. Get current Attribution params
         const currentUrlParams = new URLSearchParams(window.location.search);
@@ -1281,6 +1285,8 @@ function saveAndLogin() {
 
         const liffBase = `https://liff.line.me/${LIFF_ID}/`;
         const deepLink = liffBase + '?' + simParams.toString();
+
+        console.log('[Debug] Redirecting to:', deepLink);
 
         window.location.href = deepLink;
 
@@ -1312,9 +1318,12 @@ function savePendingState() {
             infPriceOld: document.getElementById('calc-price-old').value,
             infPriceNow: document.getElementById('calc-price-now').value
         };
+        console.log('[Debug] savePendingState captured:', state);
         localStorage.setItem('pending_sim_state', JSON.stringify(state));
+        return state; // [Fix] Return checks
     } catch (e) {
         console.error('Save State Failed:', e);
+        return {};
     }
 }
 
