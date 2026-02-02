@@ -37,7 +37,7 @@ function initInflationCalc() {
     const resultDiv = document.getElementById('calc-result');
     const resultSpan = document.getElementById('res-inflation-rate');
 
-    btn.addEventListener('click', () => {
+    const performCalc = () => {
         const pOld = parseFloat(inputs.oldPrice.value);
         const pNow = parseFloat(inputs.nowPrice.value);
         const years = 10;
@@ -46,14 +46,20 @@ function initInflationCalc() {
             const cagr = (Math.pow(pNow / pOld, 1 / years) - 1) * 100;
             const cagrFixed = cagr.toFixed(2);
 
-            resultSpan.innerText = `${cagrFixed}%`;
-            resultDiv.classList.remove('hidden');
+            if (resultSpan) resultSpan.innerText = `${cagrFixed}%`;
+            if (resultDiv) resultDiv.classList.remove('hidden');
 
             CONFIG.USER_INPUTS.calculatedInflation = cagr;
             document.dispatchEvent(new Event('inflationUpdated'));
-        } else {
-            alert("請輸入有效的價格數字！");
         }
+    };
+
+    if (btn) btn.addEventListener('click', performCalc);
+
+    // [Fix] Listen for Restoration Event to auto-calc inflation
+    document.addEventListener('stateRestored', () => {
+        // Short delay to ensure value injection
+        setTimeout(performCalc, 50);
     });
 }
 
@@ -1242,8 +1248,10 @@ function renderCommunityStats(g) {
 }
 
 function loginToSeeStats() {
+    console.log('loginToSeeStats called via Inline Click');
     saveAndLogin();
 }
+window.loginToSeeStats = loginToSeeStats;
 
 // --- Persistence Helpers ---
 function saveAndLogin() {
