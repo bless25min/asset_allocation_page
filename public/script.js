@@ -542,6 +542,34 @@ function initSimulator() {
         if (ctx) ctx.style.opacity = '1';
         updateChart(metrics);
 
+        // [Sync Fix] If Stats Modal is open and showing 'My Analysis', update it live.
+        // This prevents the race condition where Modal opens before Debounce finishes.
+        const myAnalysisBox = document.getElementById('my-analysis-container');
+        const modal = document.getElementById('stats-modal');
+        const isModalOpen = modal && !modal.classList.contains('hidden');
+        const isMyTabActive = myAnalysisBox && myAnalysisBox.style.display !== 'none';
+
+        if (isModalOpen && isMyTabActive) {
+            // Re-run the injection logic (simplified version of switchStatsGroup)
+            const contentHTML = outputs.feedback.innerHTML;
+            myAnalysisBox.innerHTML = `
+                <h4 style="color:#fff; margin-bottom:1rem;">💡 您的專屬資產診斷</h4>
+                <div class="sim-feedback" style="background:transparent; padding:0; display:block;">
+                    ${contentHTML}
+                </div>
+            `;
+            // Remove artifacts
+            const lockBtn = myAnalysisBox.querySelector('.lock-overlay-btn');
+            if (lockBtn) lockBtn.remove();
+
+            const blurredContent = myAnalysisBox.querySelector('.analysis-content');
+            if (blurredContent) {
+                blurredContent.style.filter = 'none';
+                blurredContent.style.opacity = '1';
+                blurredContent.style.pointerEvents = 'auto';
+            }
+        }
+
         // Analysis Complete
         isAnalyzing = false;
     }
@@ -763,10 +791,15 @@ function bindUIEvents() {
 
     const btnStats = document.getElementById('btn-view-stats');
     if (btnStats) {
+        console.log('Button btn-view-stats found, attaching listener');
         btnStats.addEventListener('click', () => {
-            // Deep Link Login Flow acts as the single source of truth
-            saveAndLogin();
+            console.log('Button Clicked! Opening Stats Modal (Soft Gate)...');
+            // Universally open the modal.
+            // loadStats() handles the logic for Guest (Locked View) vs Logged In (Full View).
+            loadStats();
         });
+    } else {
+        console.error('Button btn-view-stats NOT FOUND');
     }
 
     // 2. Modal Close Actions
@@ -1024,18 +1057,23 @@ async function loadStats() {
 
     // 0. Pre-login Anonymous Storage (Zero Data Loss Strategy)
     try {
-        const payload = gatherSimulationData();
-        await fetch('/api/simulation', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(payload)
-        });
+        if (window.location.protocol !== 'file:') {
+            const payload = gatherSimulationData();
+            await fetch('/api/simulation', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+        }
     } catch (e) {
         console.warn('Anonymous Save Failed (Ignoring):', e);
     }
 
     // 1. Force Login Check (UI Version)
-    if (!liff.isLoggedIn()) {
+    // [Safety] If LIFF failed to init (e.g. Local Dev), treat as Guest
+    const isUserLoggedIn = (typeof liff !== 'undefined' && liff.isLoggedIn && liff.isLoggedIn());
+
+    if (!isUserLoggedIn) {
         const filters = document.getElementById('stats-filters');
         const grid = document.querySelector('.stats-content-grid');
         const cta = document.getElementById('stats-cta-link'); // Added
@@ -1195,6 +1233,7 @@ function loginToSeeStats() {
 
 // --- Persistence Helpers ---
 function saveAndLogin() {
+    console.log('saveAndLogin called');
     try {
         // Track Lead
         if (typeof fbq === 'function') fbq('track', 'Lead');
@@ -1348,12 +1387,13 @@ function restorePendingState() {
         if (state.infPriceOld) document.getElementById('calc-price-old').value = state.infPriceOld;
         if (state.infPriceNow) document.getElementById('calc-price-now').value = state.infPriceNow;
 
-        // Trigger simulator recalculation
-        const event = new Event('input', { bubbles: true });
-        document.getElementById('slider-b-cash').dispatchEvent(event);
-        document.getElementById('slider-a-cash').dispatchEvent(event);
+        // Trigger simulator recalculation via dedicated event
+        // This bypasses the 'input' event normalization logic, 
+        // allowing us to set exact values from the URL/State.
+        document.dispatchEvent(new Event('stateRestored'));
+
         const calcNow = document.getElementById('calc-price-now');
-        if (calcNow) calcNow.dispatchEvent(event);
+        if (calcNow) calcNow.dispatchEvent(new Event('input', { bubbles: true }));
 
         // Clean up URL if restored from URL
         if (source === 'url') {
