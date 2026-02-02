@@ -1185,6 +1185,7 @@ async function loadStats() {
 
         const res = await fetch('/api/stats');
         const data = await res.json();
+        console.log('[Debug] API Stats Data:', data); // Debug API response
         allStatsData = data.groups;
 
         // Show filters and render default (small)
@@ -1214,7 +1215,7 @@ function switchStatsGroup(groupKey) {
     const tabs = document.querySelectorAll('.stats-tabs button');
     tabs.forEach(btn => {
         if (btn.innerText.includes('我的') && groupKey === 'my_analysis') btn.classList.add('active');
-        else if (btn.onclick.toString().includes(groupKey)) btn.classList.add('active');
+        else if (btn.onclick && btn.onclick.toString().includes(groupKey)) btn.classList.add('active');
         else btn.classList.remove('active');
     });
 
@@ -1258,6 +1259,8 @@ function switchStatsGroup(groupKey) {
     if (communityGrid) communityGrid.style.display = 'grid';
 
     const g = allStatsData.find(x => x.key === groupKey);
+    console.log('[Debug] Rendering Group:', groupKey, g); // Debug Render Data
+
     if (!g) return;
 
     // ... existing community stats rendering ...
@@ -1297,20 +1300,20 @@ function renderCommunityStats(g) {
         </tr>
     `;
 
-    if (tbodyA && g.avgA) {
+    if (tbodyA && g.a) {
         tbodyA.innerHTML =
-            renderRow('現金 (Cash)', g.avgA.cash) +
-            renderRow('指數 (ETF)', g.avgA.etf) +
-            renderRow('房產 (RE)', g.avgA.re) +
-            renderRow('主動 (Active)', g.avgA.active);
+            renderRow('現金 (Cash)', g.a.cash) +
+            renderRow('指數 (ETF)', g.a.etf) +
+            renderRow('房產 (RE)', g.a.re) +
+            renderRow('主動 (Active)', g.a.active);
     }
 
-    if (tbodyB && g.avgB) {
+    if (tbodyB && g.b) {
         tbodyB.innerHTML =
-            renderRow('現金 (Cash)', g.avgB.cash) +
-            renderRow('指數 (ETF)', g.avgB.etf) +
-            renderRow('房產 (RE)', g.avgB.re) +
-            renderRow('主動 (Active)', g.avgB.active);
+            renderRow('現金 (Cash)', g.b.cash) +
+            renderRow('指數 (ETF)', g.b.etf) +
+            renderRow('房產 (RE)', g.b.re) +
+            renderRow('主動 (Active)', g.b.active);
     }
 }
 
